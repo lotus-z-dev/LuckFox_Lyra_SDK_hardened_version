@@ -1,6 +1,6 @@
 # Luckfox Lyra Hardened SDK
 
-[![Dépôt GitHub](https://img.shields.io/badge/GitHub-LuckFox__Lyra__SDK__updated__version-blue?logo=github)](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_updated_version)
+[![Dépôt GitHub](https://img.shields.io/badge/GitHub-LuckFox__Lyra__SDK__updated__version-blue?logo=github)](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
 [![Licence GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-green.svg)](LICENSE)
 [![Amazon.ca](https://img.shields.io/badge/Amazon.ca-Acheter%20Luckfox%20Lyra-orange?logo=amazon)](https://link.amazon/B016bDnRF)
 
@@ -22,7 +22,7 @@ Retrouvez et soutenez le projet en vous procurant la carte officielle et ses acc
 
 - 🔗 **Lien direct Amazon.ca (Carte Luckfox Lyra W) :** [Acheter le Luckfox Lyra W](https://link.amazon/B016bDnRF)
 - 🔍 **Tous les produits et accessoires Luckfox sur Amazon :** [Parcourir la gamme Luckfox sur Amazon](https://link.amazon/B00vZoO0E)
-- 📂 **Dépôt officiel du projet :** [https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_updated_version](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_updated_version)
+- 📂 **Dépôt officiel du projet :** [https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
 
 ---
 
