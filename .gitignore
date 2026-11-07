@@ -1,0 +1,56 @@
+# Exclusions spécifiques aux secrets, jetons et clés privées
+*.pem
+*.key
+*.token
+*.env
+*.secret
+*credentials*
+*passwd*
+*shadow*
+
+# Rapports de vulnérabilités et dossiers de divulgation locaux
+VULNERABILITY_DISCLOSURE_REPORT.md
+GOOGLE_VRP_SUBMISSION_DOSSIER.md
+*VULNERABILITY*
+*REPORT*
+*SUBMISSION*
+
+# Fichiers de compilation et artefacts temporaires
+output/
+*.o
+*.o.cmd
+*.ko
+*.mod.c
+*.mod
+*.a
+*.so
+modules.order
+Module.symvers
+.built-in.a.cmd
+.tmp_versions/
+
+# Fichiers d'environnement et caches
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Archives et dépôts de métadonnées volumineux
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tgz
+*.sha256
+.repo/
+
+# Fichiers binaires du noyau volumineux
+vmlinux
+vmlinux.o
+*.dtb
+*.dtbo
+zImage
+uImage
+boot.img
+rootfs.img
+update.img
