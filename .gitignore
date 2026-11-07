@@ -54,3 +54,6 @@ uImage
 boot.img
 rootfs.img
 update.img
+
+# Outils de débogage tiers volumineux
+tools/linux/PinDebug/pin_debug_tool_v1.11_for_linux.tar

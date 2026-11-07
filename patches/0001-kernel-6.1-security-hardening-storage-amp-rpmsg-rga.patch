@@ -1,0 +1,516 @@
+From 3f4afea42cba8d22a95e90558b8651b45a8a8e99 Mon Sep 17 00:00:00 2001
+From: lotus-z-dev <lotus-z-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 10:50:02 +0000
+Subject: [PATCH] security: apply vendor storage, amp, rpmsg and rga hardening
+ fixes
+
+---
+ arch/arm/configs/rk3506_luckfox_defconfig   | 103 +++++++-------------
+ drivers/rpmsg/rockchip_rpmsg_test.c         |   9 +-
+ drivers/soc/rockchip/flash_vendor_storage.c |  22 +++--
+ drivers/soc/rockchip/iomux.c                |   4 +
+ drivers/soc/rockchip/mtd_vendor_storage.c   |  10 +-
+ drivers/soc/rockchip/rockchip_amp.c         |  24 +++--
+ drivers/soc/rockchip/sdmmc_vendor_storage.c |  12 ++-
+ drivers/video/rockchip/rga3/rga_mm.c        |  13 ++-
+ 8 files changed, 105 insertions(+), 92 deletions(-)
+
+diff --git a/arch/arm/configs/rk3506_luckfox_defconfig b/arch/arm/configs/rk3506_luckfox_defconfig
+index b32047a04..d21d32490 100644
+--- a/arch/arm/configs/rk3506_luckfox_defconfig
++++ b/arch/arm/configs/rk3506_luckfox_defconfig
+@@ -56,8 +56,20 @@ CONFIG_ARM_CPUIDLE=y
+ CONFIG_VFP=y
+ CONFIG_NEON=y
+ CONFIG_JUMP_LABEL=y
+-# CONFIG_STACKPROTECTOR_STRONG is not set
+-# CONFIG_STRICT_KERNEL_RWX is not set
++CONFIG_STACKPROTECTOR=y
++CONFIG_STACKPROTECTOR_STRONG=y
++CONFIG_STRICT_KERNEL_RWX=y
++CONFIG_STRICT_MODULE_RWX=y
++CONFIG_SLAB_FREELIST_RANDOM=y
++CONFIG_SLAB_FREELIST_HARDENED=y
++CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
++CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
++CONFIG_INIT_ON_FREE_DEFAULT_ON=y
++CONFIG_FORTIFY_SOURCE=y
++CONFIG_BUG_ON_DATA_CORRUPTION=y
++CONFIG_SECURITY_DMESG_RESTRICT=y
++# CONFIG_DEVMEM is not set
++# CONFIG_DEVPORT is not set
+ CONFIG_MODULES=y
+ CONFIG_MODULE_UNLOAD=y
+ CONFIG_PARTITION_ADVANCED=y
+@@ -84,7 +96,7 @@ CONFIG_IPV6_OPTIMISTIC_DAD=y
+ CONFIG_IPV6_VTI=y
+ CONFIG_IPV6_MULTIPLE_TABLES=y
+ CONFIG_IPV6_MROUTE=y
+-CONFIG_MPTCP=y
++# CONFIG_MPTCP is not set
+ CONFIG_NETFILTER=y
+ CONFIG_NF_CONNTRACK=y
+ CONFIG_NF_TABLES=y
+@@ -240,16 +252,8 @@ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_INGRESS=y
+ CONFIG_NET_CLS_FW=y
+ CONFIG_NET_CLS_ACT=y
+-CONFIG_CAN=y
+-CONFIG_BT=y
+-CONFIG_BT_RFCOMM=y
+-CONFIG_BT_RFCOMM_TTY=y
+-CONFIG_BT_BNEP=y
+-CONFIG_BT_HCIBTUSB=m
+-# CONFIG_BT_HCIBTUSB_BCM is not set
+-# CONFIG_BT_HCIBTUSB_RTL is not set
+-CONFIG_BT_HCIUART=y
+-CONFIG_BT_HCIUART_H4=y
++# CONFIG_CAN is not set
++# CONFIG_BT is not set
+ CONFIG_RFKILL=y
+ CONFIG_RFKILL_RK=y
+ CONFIG_DEVTMPFS=y
+@@ -275,7 +279,7 @@ CONFIG_BLK_DEV_SD=y
+ # CONFIG_SCSI_LOWLEVEL is not set
+ CONFIG_NETDEVICES=y
+ CONFIG_WIREGUARD=y
+-CONFIG_WIREGUARD_DEBUG=y
++# CONFIG_WIREGUARD_DEBUG is not set
+ CONFIG_TUN=y
+ # CONFIG_NET_VENDOR_ALACRITECH is not set
+ # CONFIG_NET_VENDOR_AMAZON is not set
+@@ -328,8 +332,6 @@ CONFIG_DWMAC_ROCKCHIP_TOOL=y
+ # CONFIG_NET_VENDOR_XILINX is not set
+ CONFIG_CH182H2_LED_TRIGGER_PHY=y
+ CONFIG_MOTORCOMM_PHY=y
+-CONFIG_CANFD_ROCKCHIP=y
+-CONFIG_CANFD_RK3576=y
+ CONFIG_PPP=y
+ CONFIG_PPP_BSDCOMP=y
+ CONFIG_PPP_DEFLATE=y
+@@ -425,48 +427,20 @@ CONFIG_MEDIA_SUPPORT_FILTER=y
+ # CONFIG_MEDIA_SUBDRV_AUTOSELECT is not set
+ CONFIG_MEDIA_CAMERA_SUPPORT=y
+ CONFIG_MEDIA_PLATFORM_SUPPORT=y
++CONFIG_MEDIA_USB_SUPPORT=y
++CONFIG_VIDEO_DEV=y
++CONFIG_VIDEO_V4L2=y
++CONFIG_VIDEO_V4L2_SUBDEV_API=y
++CONFIG_USB_VIDEO_CLASS=y
++CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+ CONFIG_V4L_PLATFORM_DRIVERS=y
+ CONFIG_ROCKCHIP_FLEXBUS_CIF=y
+-CONFIG_DRM=y
+-CONFIG_DRM_IGNORE_IOTCL_PERMIT=y
+-CONFIG_DRM_ROCKCHIP=y
+-CONFIG_ROCKCHIP_VOP=y
+-CONFIG_ROCKCHIP_DW_MIPI_DSI=y
+-# CONFIG_ROCKCHIP_DW_MIPI_DSI2 is not set
+-CONFIG_ROCKCHIP_RGB=y
+-CONFIG_DRM_PANEL_SIMPLE=y
+-CONFIG_DRM_PANEL_SIMPLE_OF_ONLY=y
+-CONFIG_DRM_SII902X=y
+-CONFIG_FB=y
+-CONFIG_BACKLIGHT_CLASS_DEVICE=y
+-CONFIG_BACKLIGHT_PWM=y
+-CONFIG_BACKLIGHT_WAVESHARE=y
+-CONFIG_ROCKCHIP_MULTI_RGA=y
+-CONFIG_FRAMEBUFFER_CONSOLE=y
+-CONFIG_SOUND=y
+-CONFIG_SND=y
+-# CONFIG_SND_SUPPORT_OLD_API is not set
+-# CONFIG_SND_DRIVERS is not set
+-# CONFIG_SND_ARM is not set
+-CONFIG_SND_SOC=y
+-CONFIG_SND_SOC_DYNAMIC_DMA_CHAN=y
+-CONFIG_SND_SOC_ROCKCHIP=y
+-CONFIG_SND_SOC_ROCKCHIP_ASRC=y
+-CONFIG_SND_SOC_ROCKCHIP_PDM_V2=y
+-CONFIG_SND_SOC_ROCKCHIP_SAI=y
+-CONFIG_SND_SOC_ROCKCHIP_SPDIF=y
+-CONFIG_SND_SOC_ROCKCHIP_SPDIFRX=y
+-CONFIG_SND_SOC_ROCKCHIP_MULTICODECS=y
+-CONFIG_SND_SOC_DUMMY_CODEC=y
+-CONFIG_SND_SOC_ES7202=y
+-CONFIG_SND_SOC_ES7202_MIC_MAX_CHANNELS=8
+-CONFIG_SND_SOC_ES8311=y
+-CONFIG_SND_SOC_ES8323=y
+-CONFIG_SND_SOC_ES8328_I2C=y
+-CONFIG_SND_SOC_RK3506=y
+-CONFIG_SND_SOC_RK730=y
+-CONFIG_SND_SOC_RK_DSM=y
+-CONFIG_SND_SIMPLE_CARD=y
++# CONFIG_DRM is not set
++# CONFIG_FB is not set
++# CONFIG_BACKLIGHT_CLASS_DEVICE is not set
++# CONFIG_ROCKCHIP_MULTI_RGA is not set
++# CONFIG_SOUND is not set
++# CONFIG_SND is not set
+ CONFIG_USB_HIDDEV=y
+ CONFIG_USB=y
+ CONFIG_USB_OTG=y
+@@ -510,7 +484,7 @@ CONFIG_MAILBOX=y
+ CONFIG_ROCKCHIP_MBOX=y
+ # CONFIG_IOMMU_SUPPORT is not set
+ CONFIG_RPMSG_ROCKCHIP_MBOX=y
+-CONFIG_RPMSG_ROCKCHIP_TEST=y
++# CONFIG_RPMSG_ROCKCHIP_TEST is not set
+ CONFIG_RPMSG_VIRTIO=y
+ CONFIG_CPU_RK3506=y
+ CONFIG_ROCKCHIP_AMP=y
+@@ -521,13 +495,8 @@ CONFIG_ROCKCHIP_OPP=y
+ CONFIG_ROCKCHIP_PM_DOMAINS=y
+ CONFIG_ROCKCHIP_SUSPEND_MODE=y
+ CONFIG_ROCKCHIP_SYSTEM_MONITOR=y
+-CONFIG_FIQ_DEBUGGER=y
+-CONFIG_FIQ_DEBUGGER_NO_SLEEP=y
+-CONFIG_FIQ_DEBUGGER_CONSOLE=y
+-CONFIG_FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE=y
+-CONFIG_FIQ_DEBUGGER_TRUST_ZONE=y
+-CONFIG_RK_CONSOLE_THREAD=y
+-CONFIG_ROCKCHIP_DEBUG=y
++# CONFIG_FIQ_DEBUGGER is not set
++# CONFIG_ROCKCHIP_DEBUG is not set
+ CONFIG_ROCKCHIP_MINI_KERNEL=y
+ CONFIG_PM_DEVFREQ=y
+ CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y
+@@ -575,11 +544,11 @@ CONFIG_PRINTK_TIME=y
+ CONFIG_PRINTK_TIME_FROM_ARM_ARCH_TIMER=y
+ # CONFIG_DEBUG_MISC is not set
+ CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y
+-CONFIG_MAGIC_SYSRQ=y
+-# CONFIG_MAGIC_SYSRQ_SERIAL is not set
+-CONFIG_DEBUG_FS=y
++# CONFIG_MAGIC_SYSRQ is not set
++# CONFIG_DEBUG_FS is not set
+ # CONFIG_SLUB_DEBUG is not set
+ CONFIG_PANIC_ON_OOPS=y
++CONFIG_PANIC_TIMEOUT=2
+ CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
+ CONFIG_HARDLOCKUP_DETECTOR=y
+ CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
+diff --git a/drivers/rpmsg/rockchip_rpmsg_test.c b/drivers/rpmsg/rockchip_rpmsg_test.c
+index 7f607bd29..ee49be2b8 100644
+--- a/drivers/rpmsg/rockchip_rpmsg_test.c
++++ b/drivers/rpmsg/rockchip_rpmsg_test.c
+@@ -32,9 +32,12 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
+ 	uint32_t remote_ept_id;
+ 	struct rpmsg_info_t *info = dev_get_drvdata(&rp->dev);
+ 
++	if (!info || !payload || payload_len < 0)
++		return -EINVAL;
++
+ 	remote_ept_id = src;
+-	dev_info(&rp->dev, "rx msg %s rx_count %d(remote_ept_id: 0x%x)\n",
+-			(char *)payload, ++info->rx_count, remote_ept_id);
++	dev_info(&rp->dev, "rx msg %.*s rx_count %d(remote_ept_id: 0x%x)\n",
++		 payload_len, (char *)payload, ++info->rx_count, remote_ept_id);
+ 
+ 	/* test should not live forever */
+ 	if (info->rx_count >= MSG_LIMIT) {
+@@ -47,7 +50,7 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
+ 	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG_2, strlen(LINUX_TEST_MSG_2), remote_ept_id);
+ 	if (ret)
+ 		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
+-		return ret;
++	return ret;
+ }
+ 
+ static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
+diff --git a/drivers/soc/rockchip/flash_vendor_storage.c b/drivers/soc/rockchip/flash_vendor_storage.c
+index 7c8cd338d..62821ef43 100644
+--- a/drivers/soc/rockchip/flash_vendor_storage.c
++++ b/drivers/soc/rockchip/flash_vendor_storage.c
+@@ -174,7 +174,8 @@ static int flash_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_size >= align_size &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+@@ -243,6 +244,9 @@ static long vendor_storage_ioctl(struct file *file,
+ 	u32 *temp_buf;
+ 	struct RK_VENDOR_REQ *req;
+ 
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	req = kmalloc(sizeof(*req), GFP_KERNEL);
+ 	if (!req)
+ 		return ret;
+@@ -260,6 +264,10 @@ static long vendor_storage_ioctl(struct file *file,
+ 			break;
+ 		}
+ 		if (req->tag == VENDOR_REQ_TAG) {
++			if (req->len > sizeof(req->data)) {
++				ret = -EINVAL;
++				break;
++			}
+ 			size = flash_vendor_read(req->id,
+ 						 req->data,
+ 						 req->len);
+@@ -282,13 +290,15 @@ static long vendor_storage_ioctl(struct file *file,
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-		if (req->tag == VENDOR_REQ_TAG)
+-			ret = flash_vendor_write(req->id,
+-						 req->data,
+-						 req->len);
++		if (req->tag == VENDOR_REQ_TAG &&
++			    req->len <= sizeof(req->data))
++				ret = flash_vendor_write(req->id,
++							 req->data,
++							 req->len);
+ 	} break;
+ 	default:
+-		return -EINVAL;
++		ret = -EINVAL;
++		break;
+ 	}
+ 	kfree(temp_buf);
+ 	DLOG("flash_vendor_ioctl cmd=%x ret = %lx\n", cmd, ret);
+diff --git a/drivers/soc/rockchip/iomux.c b/drivers/soc/rockchip/iomux.c
+index 110feb7f8..1bff33afc 100644
+--- a/drivers/soc/rockchip/iomux.c
++++ b/drivers/soc/rockchip/iomux.c
+@@ -14,6 +14,7 @@
+ #include <linux/miscdevice.h>
+ #include <linux/slab.h>
+ #include <linux/gpio/driver.h>
++#include <linux/capability.h>
+ #include <uapi/linux/rk-iomux.h>
+ #include "../../pinctrl/pinctrl-rockchip.h"
+ 
+@@ -26,6 +27,9 @@ static long rk_iomux_ioctl(struct file *file, unsigned int cmd, unsigned long ar
+ 	struct iomux_ioctl_data data;
+ 	int ret = 0;
+ 
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	if (_IOC_SIZE(cmd) > sizeof(data))
+ 		return -EINVAL;
+ 
+diff --git a/drivers/soc/rockchip/mtd_vendor_storage.c b/drivers/soc/rockchip/mtd_vendor_storage.c
+index 1f32930d9..d3be1a7e4 100644
+--- a/drivers/soc/rockchip/mtd_vendor_storage.c
++++ b/drivers/soc/rockchip/mtd_vendor_storage.c
+@@ -257,7 +257,8 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_size >= align_size &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+@@ -276,6 +277,8 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 
+ static int vendor_storage_open(struct inode *inode, struct file *file)
+ {
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
+ 	return 0;
+ }
+ 
+@@ -292,6 +295,9 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 	struct RK_VENDOR_REQ *v_req;
+ 	u32 *page_buf;
+ 
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	page_buf = kmalloc(4096, GFP_KERNEL);
+ 	if (!page_buf)
+ 		return -ENOMEM;
+@@ -309,7 +315,7 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 		}
+ 		if (v_req->tag == VENDOR_REQ_TAG) {
+ 			size = mtd_vendor_read(v_req->id, v_req->data,
+-						v_req->len);
++					min_t(u16, v_req->len, 4096 - 8));
+ 			if (size != -1) {
+ 				v_req->len = size;
+ 				ret = 0;
+diff --git a/drivers/soc/rockchip/rockchip_amp.c b/drivers/soc/rockchip/rockchip_amp.c
+index b3a744036..9ee68dbe2 100644
+--- a/drivers/soc/rockchip/rockchip_amp.c
++++ b/drivers/soc/rockchip/rockchip_amp.c
+@@ -9,6 +9,7 @@
+ #include <asm/cputype.h>
+ #include <linux/clk.h>
+ #include <linux/module.h>
++#include <linux/capability.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_domain.h>
+@@ -167,24 +168,27 @@ static ssize_t boot_cpu_store(struct device *dev,
+ {
+ 	struct arm_smccc_res res = {0};
+ 	unsigned long cpu_id;
+-	char cmd[10];
++	char cmd[10] = {0};
+ 	int ret, idx;
+ 
+-	ret = sscanf(buf, "%s", cmd);
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	ret = sscanf(buf, "%9s", cmd);
+ 	if (ret != 1) {
+ 		pr_info("Use on/off [cpu id] or status [cpu id]\n");
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (!strncmp(cmd, "status", strlen("status"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+ 		res = sip_smc_get_amp_info(RK_AMP_SUB_FUNC_GET_CPU_STATUS, cpu_id);
+ 		cpu_status_print(cpu_id, &res);
+ 	} else if (!strncmp(cmd, "off", strlen("off"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+@@ -196,7 +200,7 @@ static ssize_t boot_cpu_store(struct device *dev,
+ 				dev_warn(dev, "failed to request cpu[%lx] off, ret=%d!\n", cpu_id, ret);
+ 		}
+ 	} else if (!strncmp(cmd, "on", strlen("on"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+@@ -222,7 +226,7 @@ static ssize_t boot_cpu_store(struct device *dev,
+ 
+ static struct kobject *rk_amp_kobj;
+ static struct device_attribute rk_amp_attrs[] = {
+-	__ATTR(boot_cpu, 0664, boot_cpu_show, boot_cpu_store),
++	__ATTR(boot_cpu, 0600, boot_cpu_show, boot_cpu_store),
+ };
+ 
+ static int rockchip_amp_boot_cpus(struct device *dev,
+@@ -285,21 +289,29 @@ static int rockchip_amp_boot_cpus(struct device *dev,
+ 
+ int rockchip_amp_check_amp_irq(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].amp_flag;
+ }
+ 
+ u32 rockchip_amp_get_irq_prio(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].prio;
+ }
+ 
+ u32 rockchip_amp_get_irq_cpumask(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].cpumask;
+ }
+ 
+ int rockchip_amp_need_init_amp_irq(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].amp_flag;
+ }
+ 
+diff --git a/drivers/soc/rockchip/sdmmc_vendor_storage.c b/drivers/soc/rockchip/sdmmc_vendor_storage.c
+index 5c14c484c..20e829c3b 100644
+--- a/drivers/soc/rockchip/sdmmc_vendor_storage.c
++++ b/drivers/soc/rockchip/sdmmc_vendor_storage.c
+@@ -180,7 +180,8 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_size >= align_size &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+@@ -264,6 +265,8 @@ static int emmc_write_idblock(u32 size, u8 *buf, u32 *id_blk_tbl)
+ 
+ static int vendor_storage_open(struct inode *inode, struct file *file)
+ {
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
+ 	return 0;
+ }
+ 
+@@ -359,6 +362,9 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 	struct RK_VENDOR_REQ *v_req;
+ 	u32 *page_buf;
+ 
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	page_buf = kmalloc(4096, GFP_KERNEL);
+ 	if (!page_buf)
+ 		return -ENOMEM;
+@@ -376,7 +382,7 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 		}
+ 		if (v_req->tag == VENDOR_REQ_TAG) {
+ 			size = emmc_vendor_read(v_req->id, v_req->data,
+-						v_req->len);
++					min_t(u16, v_req->len, 4096 - 8));
+ 			if (size != -1) {
+ 				v_req->len = size;
+ 				ret = 0;
+@@ -414,7 +420,7 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 		}
+ 
+ 		size = page_buf[1];
+-		if (size <= 8) {
++		if (size > 0 && size <= 8) {
+ 			id_blk_read_data(page_buf[0], size, (u8 *)page_buf);
+ 			if (copy_to_user((void __user *)arg, page_buf,
+ 					 size * 512)) {
+diff --git a/drivers/video/rockchip/rga3/rga_mm.c b/drivers/video/rockchip/rga3/rga_mm.c
+index c5de4127d..33e45d1a0 100644
+--- a/drivers/video/rockchip/rga3/rga_mm.c
++++ b/drivers/video/rockchip/rga3/rga_mm.c
+@@ -145,11 +145,9 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
+ 			for (i = 0; i < result; i++)
+ 				put_page(pages[i]);
+ 
+-		ret = rga_get_user_pages_from_vma(pages, Memory, pageCount, current_mm);
+-		if (ret < 0 && result > 0) {
+-			rga_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
+-				(int)(result * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
+-		}
++		rga_err("get_user_pages_remote failed (result=%d, required=%u)\n",
++			result, pageCount);
++		ret = -EFAULT;
+ 	}
+ 
+ 	rga_current_mm_read_unlock(current_mm);
+@@ -686,6 +684,11 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
+ 	struct rga_dma_buffer *buffer;
+ 	struct rga_scheduler_t *scheduler;
+ 
++	if (!capable(CAP_SYS_RAWIO)) {
++		rga_err("Permission denied for RGA_PHYSICAL_ADDRESS mapping!\n");
++		return -EPERM;
++	}
++
+ 	scheduler = job ? job->scheduler :
+ 		    rga_drvdata->scheduler[rga_drvdata->map_scheduler_index];
+ 	if (scheduler == NULL) {
+-- 
+2.39.5
+

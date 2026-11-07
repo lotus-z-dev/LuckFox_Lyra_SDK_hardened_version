@@ -138,3 +138,17 @@ Tous les détails de licences et mentions légales sont décrits dans le fichier
 
 - Ne committez **jamais** de secrets, jetons d'accès ou clés privées dans ce dépôt.
 - Toute modification apportée au noyau doit compiler sans avertissement avec `-Werror`.
+
+---
+
+## 🛠️ Utilisation des Patches Durcis (Hardened Patches)
+
+Si vous disposez déjà d'une arborescence SDK Luckfox officielle, vous pouvez appliquer l'ensemble de nos correctifs de sécurité et de robustesse en une seule commande grâce au script fourni :
+
+```bash
+./apply-hardened-patches.sh
+```
+
+Ce script applique automatiquement :
+- `patches/0001-kernel-6.1-security-hardening-storage-amp-rpmsg-rga.patch` : Sécurisation du stockage constructeur (Flash/MTD/SDMMC), assainissement de la communication RPMSG, et renforcement de la configuration mémoire noyau.
+- `patches/0002-rkwifibt-aic8800-driver-robustness-and-usb-sanitization.patch` : Validation stricte des tampons de réception USB et des requêtes privées du pilote AIC8800.

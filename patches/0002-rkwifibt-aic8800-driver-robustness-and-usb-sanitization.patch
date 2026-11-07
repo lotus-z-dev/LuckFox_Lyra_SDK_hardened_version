@@ -1,0 +1,2073 @@
+From 66c753b5afe4244d91941ac9be96974323fcaa32 Mon Sep 17 00:00:00 2001
+From: lotus-z-dev <lotus-z-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 10:50:10 +0000
+Subject: [PATCH] driver: aic8800: sanitize packet lengths, usb rx buffers and
+ priv ioctls
+
+---
+ drivers/aic8800/aic8800/aic8800_fdrv/Makefile |  27 +-
+ .../aic8800/aic8800_fdrv/aic_priv_cmd.c       |  36 +-
+ .../aic8800/aic8800/aic8800_fdrv/aic_vendor.c |  74 +++-
+ .../aic8800/aic8800_fdrv/aicwf_txrxif.c       |  58 ++-
+ .../aic8800/aic8800/aic8800_fdrv/aicwf_usb.c  |  20 +-
+ .../aic8800/aic8800_fdrv/rwnx_fw_dump.c       |  21 +-
+ .../aic8800/aic8800/aic8800_fdrv/rwnx_main.c  |  14 +-
+ .../aic8800/aic8800_fdrv/rwnx_msg_rx.c        | 220 ++++++++---
+ .../aic8800/aic8800_fdrv/rwnx_platform.c      |  61 +++-
+ .../aic8800/aic8800/aic8800_fdrv/rwnx_rx.c    | 344 +++++++++++-------
+ .../aic8800/aic_load_fw/aicbluetooth.c        |  81 +++--
+ 11 files changed, 630 insertions(+), 326 deletions(-)
+
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/Makefile b/drivers/aic8800/aic8800/aic8800_fdrv/Makefile
+index a79891f..ef06f46 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/Makefile
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/Makefile
+@@ -1,5 +1,6 @@
+ EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
+ EXTRA_CFLAGS += -Wno-implicit-fallthrough
++EXTRA_CFLAGS += -fstack-protector-strong -D_FORTIFY_SOURCE=2
+ #EXTRA_CFLAGS += -Wno-unused-variable
+ 
+ RWNX_VERS_NUM := 6.4.3.0
+@@ -29,7 +30,7 @@ CONFIG_RWNX_FHOST ?= n
+ 
+ #
+ # DEBUG OPTIONS
+-CONFIG_RWNX_UM_HELPER_DFLT ?= "/dini/dini_bin/rwnx_umh.sh"
++CONFIG_RWNX_UM_HELPER_DFLT ?= "/bin/true"
+ CONFIG_AIC_FW_PATH = "/vendor/etc/firmware"
+ export CONFIG_AIC_FW_PATH
+ 
+@@ -42,7 +43,7 @@ CONFIG_RWNX_TL4 ?= n
+ CONFIG_RWNX_OLD_IPC ?= n
+ 
+ # Support of P2P DebugFS for enabling/disabling NoA and OppPS
+-CONFIG_RWNX_P2P_DEBUGFS ?= y
++CONFIG_RWNX_P2P_DEBUGFS ?= n
+ 
+ #
+ # } // WAITING FOR KCONFIG
+@@ -60,18 +61,18 @@ CONFIG_RWNX_BFMER ?= n
+ CONFIG_SDIO_SUPPORT =n
+ CONFIG_USB_SUPPORT =y
+ CONFIG_RX_REORDER =y
+-CONFIG_ARP_OFFLOAD =y
++CONFIG_ARP_OFFLOAD =n
+ CONFIG_USE_5G = y
+ CONFIG_RADAR_OR_IR_DETECT =n
+ CONFIG_DOWNLOAD_FW =n
+-CONFIG_RFTEST=y
+-CONFIG_USB_BT=y
++CONFIG_RFTEST=n
++CONFIG_USB_BT=n
+ CONFIG_MAC_RANDOM_IF_NO_MAC_IN_EFUSE = y
+ CONFIG_WPA3_FOR_OLD_KERNEL = n
+ CONFIG_HE_FOR_OLD_KERNEL = n
+ CONFIG_VHT_FOR_OLD_KERNEL = n
+ # CONFIG_COEX = n for BT_ONLY, CONFIG_COEX =y for combo and sw
+-CONFIG_COEX = y
++CONFIG_COEX = n
+ CONFIG_ALIGN_8BYTES = y
+ CONFIG_TXRX_THREAD_PRIO = y
+ CONFIG_USB_ALIGN_DATA = y
+@@ -91,10 +92,10 @@ CONFIG_USB_TX_AGGR = n
+ CONFIG_USB_NO_TRANS_DMA_MAP = n
+ CONFIG_GPIO_WAKEUP = n
+ CONFIG_CREATE_TRACE_POINTS = n
+-CONFIG_SUPPORT_REALTIME_CHANGE_MAC = y
++CONFIG_SUPPORT_REALTIME_CHANGE_MAC = n
+ CONFIG_USE_USB_ZERO_PACKET = y
+ CONFIG_DEBUG_FS = n
+-CONFIG_STA_SCAN_WHEN_P2P_WORKING = y
++CONFIG_STA_SCAN_WHEN_P2P_WORKING = n
+ CONFIG_SET_VENDOR_EXTENSION_IE = n
+ CONFIG_VENDOR_GPIO = n
+ CONFIG_FWLOG_EN = n
+@@ -107,7 +108,7 @@ CONFIG_ONE_TXQ = n
+ CONFIG_PER_STA_FC = n
+ CONFIG_PREALLOC_RX_SKB ?= n
+ CONFIG_PREALLOC_TXQ ?= y
+-CONFIG_USE_WIRELESS_EXT = y
++CONFIG_USE_WIRELESS_EXT = n
+ CONFIG_DPD = y
+ CONFIG_FORCE_DPD_CALIB = y
+ CONFIG_LOFT_CALIB = n
+@@ -117,7 +118,7 @@ CONFIG_TEMP_COMP = n
+ CONFIG_POWER_LIMIT = n
+ CONFIG_EXT_FEM_8800DCDW = n
+ # CONFIG_MCC = n for sta and p2p concurrent in same channel.
+-CONFIG_MCC = y
++CONFIG_MCC = n
+ CONFIG_LOAD_BT_PATCH_IN_FDRV = n
+ CONFIG_DYNAMIC_PWR = n
+ CONFIG_DYNAMIC_PERPWR = n
+@@ -140,7 +141,7 @@ CONFIG_RWNX_MUMIMO_TX = n
+ endif
+ 
+ # Enable handling of radar event
+-CONFIG_RWNX_RADAR ?= y
++CONFIG_RWNX_RADAR ?= n
+ 
+ # Enable HW queue for Broadcast/Multicast traffic (need FW support)
+ CONFIG_RWNX_BCMC ?= y
+@@ -150,11 +151,11 @@ CONFIG_RWNX_MON_DATA =n
+ CONFIG_RWNX_MON_XMIT ?= n
+ CONFIG_RWNX_MON_RXFILTER ?= n
+ 
+-CONFIG_FILTER_TCP_ACK =y
++CONFIG_FILTER_TCP_ACK =n
+ 
+ # extra DEBUG config
+ CONFIG_RWNX_SW_PROFILING ?= n
+-CONFIG_RWNX_DBG ?= y
++CONFIG_RWNX_DBG ?= n
+ BR_NAME = br0
+ 
+ obj-$(CONFIG_AIC8800_WLAN_SUPPORT) := $(MODULE_NAME).o
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/aic_priv_cmd.c b/drivers/aic8800/aic8800/aic8800_fdrv/aic_priv_cmd.c
+index bfa889a..4d41040 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/aic_priv_cmd.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/aic_priv_cmd.c
+@@ -29,7 +29,6 @@ struct dbg_rftest_cmd_cfm cfm = { {
+ 	0,
+ } };
+ 
+-#ifdef CONFIG_RFTEST
+ enum {
+ 	SET_TX,
+ 	SET_TXSTOP,
+@@ -115,7 +114,6 @@ typedef struct {
+ 	s8_l dut_rssi_static;
+ 	u16_l reserved;
+ } cob_result_ptr_t;
+-#endif
+ 
+ typedef struct {
+ 	u8_l func;
+@@ -1628,12 +1626,9 @@ int handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-#if 0
+-	if(!testmode) {
+-		AICWFDBG(LOGERROR, "not in testmode\n");
+-		return -1;
++	if (!capable(CAP_NET_ADMIN) || net != NULL) {
++		return -EPERM;
+ 	}
+-#endif
+ 
+ 	argc = parse_line(command, argv);
+ 	if (argc == 0) {
+@@ -1776,10 +1771,10 @@ int android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 	///todo: add our lock
+ 	//net_os_wake_lock(net);
+ 
+-	/*	if (!capable(CAP_NET_ADMIN)) {
++	if (!capable(CAP_NET_ADMIN)) {
+ 		ret = -EPERM;
+ 		goto exit;
+-	}*/
++	}
+ 	if (!ifr->ifr_data) {
+ 		ret = -EINVAL;
+ 		goto exit;
+@@ -1901,30 +1896,11 @@ int android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 		goto exit;
+ 	} else if (!strncasecmp(command, CMD_SET_TESTMODE,
+ 				strlen(CMD_SET_TESTMODE))) {
+-		if (g_rwnx_plat && g_rwnx_plat->usbdev->rwnx_hw) {
+-			if (g_rwnx_plat->usbdev->chipid ==
+-				    PRODUCT_ID_AIC8800DW ||
+-			    (g_rwnx_plat->usbdev->chipid ==
+-			     PRODUCT_ID_AIC8800DC) ||
+-			    (g_rwnx_plat->usbdev->chipid ==
+-			     PRODUCT_ID_AIC8800D81) ||
+-			    (g_rwnx_plat->usbdev->chipid ==
+-			     PRODUCT_ID_AIC8800D81X2) ||
+-			    (g_rwnx_plat->usbdev->chipid ==
+-			     PRODUCT_ID_AIC8800D89X2)) {
+-				set_testmode(!testmode);
+-				rwnx_send_reboot(g_rwnx_plat->usbdev->rwnx_hw);
+-			}
+-		}
+-		ret = 0;
++		ret = -EPERM;
+ 		goto exit;
+ 	} else if (!strncasecmp(command, CMD_SET_BLE_WAKE,
+ 				strlen(CMD_SET_BLE_WAKE))) {
+-		if (g_rwnx_plat && g_rwnx_plat->usbdev->rwnx_hw) {
+-			set_testmode(5);
+-			rwnx_send_reboot(g_rwnx_plat->usbdev->rwnx_hw);
+-		}
+-		ret = 0;
++		ret = -EPERM;
+ 		goto exit;
+ 	}
+ #ifdef CONFIG_RWNX_MON_DATA
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/aic_vendor.c b/drivers/aic8800/aic8800/aic8800_fdrv/aic_vendor.c
+index 6172935..c3ac50b 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/aic_vendor.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/aic_vendor.c
+@@ -112,9 +112,17 @@ static int aicwf_vendor_start_mkeep_alive(struct wiphy *wiphy,
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case MKEEP_ALIVE_ATTRIBUTE_ID:
++			if (nla_len(iter) < sizeof(u8)) {
++				ret = -EINVAL;
++				goto exit;
++			}
+ 			mkeep_alive_id = nla_get_u8(iter);
+ 			break;
+ 		case MKEEP_ALIVE_ATTRIBUTE_IP_PKT_LEN:
++			if (nla_len(iter) < sizeof(u16)) {
++				ret = -EINVAL;
++				goto exit;
++			}
+ 			ip_pkt_len = nla_get_u16(iter);
+ 			if (ip_pkt_len > MKEEP_ALIVE_IP_PKT_MAX) {
+ 				ret = -EINVAL;
+@@ -122,11 +130,12 @@ static int aicwf_vendor_start_mkeep_alive(struct wiphy *wiphy,
+ 			}
+ 			break;
+ 		case MKEEP_ALIVE_ATTRIBUTE_IP_PKT:
+-			if (!ip_pkt_len) {
++			if (!ip_pkt_len || nla_len(iter) < ip_pkt_len) {
+ 				ret = -EINVAL;
+-				printk("ip packet length is 0\n");
++				printk("ip packet length is invalid\n");
+ 				goto exit;
+ 			}
++			kfree(ip_pkt);
+ 			ip_pkt = (u8 *)kzalloc(ip_pkt_len, kflags);
+ 			if (ip_pkt == NULL) {
+ 				ret = -ENOMEM;
+@@ -136,12 +145,24 @@ static int aicwf_vendor_start_mkeep_alive(struct wiphy *wiphy,
+ 			memcpy(ip_pkt, (u8 *)nla_data(iter), ip_pkt_len);
+ 			break;
+ 		case MKEEP_ALIVE_ATTRIBUTE_SRC_MAC_ADDR:
++			if (nla_len(iter) < 6) {
++				ret = -EINVAL;
++				goto exit;
++			}
+ 			memcpy(src_mac, nla_data(iter), 6);
+ 			break;
+ 		case MKEEP_ALIVE_ATTRIBUTE_DST_MAC_ADDR:
++			if (nla_len(iter) < 6) {
++				ret = -EINVAL;
++				goto exit;
++			}
+ 			memcpy(dst_mac, nla_data(iter), 6);
+ 			break;
+ 		case MKEEP_ALIVE_ATTRIBUTE_PERIOD_MSEC:
++			if (nla_len(iter) < sizeof(u32)) {
++				ret = -EINVAL;
++				goto exit;
++			}
+ 			period_msec = nla_get_u32(iter);
+ 			break;
+ 		default:
+@@ -188,6 +209,8 @@ static int aicwf_vendor_stop_mkeep_alive(struct wiphy *wiphy,
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case MKEEP_ALIVE_ATTRIBUTE_ID:
++			if (nla_len(iter) < sizeof(u8))
++				return -EINVAL;
+ 			mkeep_alive_id = nla_get_u8(iter);
+ 			break;
+ 		default:
+@@ -301,8 +324,10 @@ static int aicwf_vendor_subcmd_get_channel_list(struct wiphy *wiphy,
+ 			reply = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+ 								    payload);
+ 
+-			if (!reply)
++			if (!reply) {
++				kfree(channel_list);
+ 				return -ENOMEM;
++			}
+ 
+ 			if (nla_put_u32(reply, GSCAN_ATTRIBUTE_NUM_CHANNELS,
+ 					num_channels))
+@@ -320,6 +345,7 @@ static int aicwf_vendor_subcmd_get_channel_list(struct wiphy *wiphy,
+ 		default:
+ 			pr_err("%s(%d), Unknown type: %d\n", __func__, __LINE__,
+ 			       type);
++			kfree(channel_list);
+ 			return -EINVAL;
+ 		}
+ 	}
+@@ -343,15 +369,19 @@ static int aicwf_vendor_subcmd_set_country_code(struct wiphy *wiphy,
+ 	int ret = 0, rem, type;
+ 	const struct nlattr *iter;
+ 	struct ieee80211_regdomain *regdomain;
++	char alpha2[4] = { 0 };
+ 
+ 	nla_for_each_attr(iter, data, len, rem) {
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case ANDR_WIFI_ATTRIBUTE_COUNTRY:
++			if (nla_len(iter) < 2)
++				return -EINVAL;
++			memcpy(alpha2, nla_data(iter), 2);
++			alpha2[2] = '\0';
+ 			printk("%s(%d), ANDR_WIFI_ATTRIBUTE_COUNTRY: %s\n",
+-			       __func__, __LINE__, (char *)nla_data(iter));
+-			regdomain = getRegdomainFromRwnxDB(
+-				wiphy, (char *)nla_data(iter));
++			       __func__, __LINE__, alpha2);
++			regdomain = getRegdomainFromRwnxDB(wiphy, alpha2);
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+ 			if ((ret = regulatory_set_wiphy_regd(wiphy,
+ 							     regdomain))) {
+@@ -526,25 +556,36 @@ static int aicwf_vendor_logger_start_logging(struct wiphy *wiphy,
+ {
+ 	int ret = 0, rem, type, intval, size, i;
+ 	const struct nlattr *iter;
+-	struct wifi_ring_buffer_status rb;
++	struct wifi_ring_buffer_status rb = { 0 };
+ 
+ 	nla_for_each_attr(iter, data, len, rem) {
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case LOGGER_ATTRIBUTE_LOG_LEVEL:
++			if (nla_len(iter) < sizeof(u32))
++				return -EINVAL;
+ 			rb.verbose_level = nla_get_u32(iter);
+ 			break;
+ 		case LOGGER_ATTRIBUTE_RING_FLAGS:
++			if (nla_len(iter) < sizeof(u32))
++				return -EINVAL;
+ 			rb.flags = nla_get_u32(iter);
+ 			break;
+ 		case LOGGER_ATTRIBUTE_LOG_TIME_INTVAL:
++			if (nla_len(iter) < sizeof(u32))
++				return -EINVAL;
+ 			intval = nla_get_u32(iter);
+ 			break;
+ 		case LOGGER_ATTRIBUTE_LOG_MIN_DATA_SIZE:
++			if (nla_len(iter) < sizeof(u32))
++				return -EINVAL;
+ 			size = nla_get_u32(iter);
+ 			break;
+ 		case LOGGER_ATTRIBUTE_RING_NAME:
+-			strcpy(rb.name, nla_data(iter));
++			if (nla_len(iter) < 1)
++				return -EINVAL;
++			strscpy(rb.name, (const char *)nla_data(iter),
++				min_t(size_t, sizeof(rb.name), nla_len(iter)));
+ 			break;
+ 		default:
+ 			AICWFDBG(LOGERROR, "%s(%d), Unknown type: %d\n",
+@@ -574,13 +615,16 @@ static int aicwf_vendor_logger_get_ring_data(struct wiphy *wiphy,
+ {
+ 	int ret = 0, rem, type, i;
+ 	const struct nlattr *iter;
+-	struct wifi_ring_buffer_status rb;
++	struct wifi_ring_buffer_status rb = { 0 };
+ 
+ 	nla_for_each_attr(iter, data, len, rem) {
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case LOGGER_ATTRIBUTE_RING_NAME:
+-			strcpy(rb.name, nla_data(iter));
++			if (nla_len(iter) < 1)
++				return -EINVAL;
++			strscpy(rb.name, (const char *)nla_data(iter),
++				min_t(size_t, sizeof(rb.name), nla_len(iter)));
+ 			break;
+ 		default:
+ 			pr_err("%s(%d), Unknown type: %d\n", __func__, __LINE__,
+@@ -725,6 +769,8 @@ static int aicwf_vendor_apf_subcmd_get_capabilities(struct wiphy *wiphy,
+ 	max_len = 2048;
+ 
+ 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, max_len);
++	if (!skb)
++		return -ENOMEM;
+ 
+ 	ret = nla_put_u32(skb, APF_ATTRIBUTE_VERSION, ver);
+ 	if (ret < 0) {
+@@ -745,10 +791,10 @@ static int aicwf_vendor_apf_subcmd_get_capabilities(struct wiphy *wiphy,
+ 			 ret);
+ 	}
+ 
++	return ret;
++
+ fail:
+-	/* TODO
+-	 * Add handle in the future
+-	 */
++	kfree_skb(skb);
+ 	return ret;
+ }
+ 
+@@ -764,6 +810,8 @@ static int aicwf_vendor_sub_cmd_set_mac(struct wiphy *wiphy,
+ 		type = nla_type(iter);
+ 		switch (type) {
+ 		case WIFI_VENDOR_ATTR_DRIVER_MAC_ADDR:
++			if (nla_len(iter) < ETH_ALEN)
++				return -EINVAL;
+ 			memcpy(mac, nla_data(iter), ETH_ALEN);
+ 			printk("%s, %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,
+ 			       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_txrxif.c b/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_txrxif.c
+index 1ab2baa..bd71cc1 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_txrxif.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_txrxif.c
+@@ -412,6 +412,11 @@ int aicwf_tasklet_rxframes(struct aicwf_rx_priv *rx_priv)
+ 			txrx_err("skb_error\r\n");
+ 			break;
+ 		}
++		if (skb->len < 4) {
++			dev_kfree_skb(skb);
++			atomic_dec(&rx_priv->rx_cnt);
++			continue;
++		}
+ 		data = skb->data;
+ 		pkt_len = (*skb->data | (*(skb->data + 1) << 8));
+ 		//printk("p:%d, s:%d , %x\n", pkt_len, skb->len, data[2]);
+@@ -457,6 +462,12 @@ int aicwf_tasklet_rxframes(struct aicwf_rx_priv *rx_priv)
+ 			else
+ 				adjust_len = aggr_len;
+ 
++			if ((u32)aggr_len + 4 > skb->len ||
++			    (u32)adjust_len + 4 > skb->len) {
++				dev_kfree_skb(skb);
++				atomic_dec(&rx_priv->rx_cnt);
++				continue;
++			}
+ 			msg = kmalloc(aggr_len + 4, GFP_ATOMIC);
+ 			if (msg == NULL) {
+ 				txrx_err("no more space for msg!\n");
+@@ -838,23 +849,17 @@ int aicwf_process_rxframes(struct aicwf_rx_priv *rx_priv)
+ 			}
+ 			while (aicwf_another_ptk(skb)) {
+ 				cnt++;
+-				if (cnt > 30) {
+-					//printk("%s err, break %d\n", __func__, cnt);
+-					//break;
+-				}
++				if (skb->len < 4)
++					break;
+ 				data = skb->data;
+ 				pkt_len =
+ 					(*skb->data | (*(skb->data + 1) << 8));
+-				//printk("p:%d, s:%d , %x\n", pkt_len, skb->len, data[2]);
+ #ifndef CONFIG_USB_RX_REASSEMBLE
+ 				if (pkt_len > skb->len) {
+ 					AICWFDBG(
+ 						LOGERROR,
+ 						"%s pkt_len:%d skb->len:%d\r\n",
+ 						__func__, pkt_len, skb->len);
+-					//dev_kfree_skb(skb);
+-					//atomic_dec(&rx_priv->rx_cnt);
+-					//continue;
+ 					break;
+ 				}
+ #endif
+@@ -862,6 +867,8 @@ int aicwf_process_rxframes(struct aicwf_rx_priv *rx_priv)
+ 				    USB_TYPE_CFG) { // type : data
+ 					aggr_len = pkt_len + RX_HWHRD_LEN;
+ 					adjust_len = aggr_len;
++					if ((u32)aggr_len > skb->len)
++						break;
+ 					skb_inblock = __dev_alloc_skb(
+ 						aggr_len + CCMP_OR_WEP_INFO,
+ 						GFP_KERNEL); //8 is for ccmp mic or wep icv
+@@ -891,6 +898,9 @@ int aicwf_process_rxframes(struct aicwf_rx_priv *rx_priv)
+ 					else
+ 						adjust_len = aggr_len;
+ 
++					if ((u32)aggr_len + 4 > skb->len ||
++					    (u32)adjust_len + 4 > skb->len)
++						break;
+ 					msg = kmalloc(
+ 						aggr_len + 4,
+ 						GFP_KERNEL); //hdr(4)+config(aggrlen)
+@@ -949,9 +959,13 @@ int aicwf_process_rxframes(struct aicwf_rx_priv *rx_priv)
+ 				ASSERT_ERR(1);
+ 				break;
+ 			}
++			if (skb->len < 4) {
++				dev_kfree_skb(skb);
++				atomic_dec(&rx_priv->rx_cnt);
++				continue;
++			}
+ 			data = skb->data;
+ 			pkt_len = (*skb->data | (*(skb->data + 1) << 8));
+-			//printk("p:%d, s:%d , %x\n", pkt_len, skb->len, data[2]);
+ #ifndef CONFIG_USB_RX_REASSEMBLE
+ 			if (pkt_len > skb->len) {
+ 				AICWFDBG(LOGERROR,
+@@ -975,6 +989,13 @@ int aicwf_process_rxframes(struct aicwf_rx_priv *rx_priv)
+ 				else
+ 					adjust_len = aggr_len;
+ 
++				if ((u32)aggr_len + 4 > skb->len ||
++				    (u32)adjust_len + 4 > skb->len) {
++					dev_kfree_skb(skb);
++					atomic_dec(&rx_priv->rx_cnt);
++					continue;
++				}
++
+ 				msg = kmalloc(aggr_len + 4, GFP_KERNEL);
+ 				if (msg == NULL) {
+ 					txrx_err("no more space for msg!\n");
+@@ -1053,6 +1074,11 @@ int aicwf_process_msg_rxframes(struct aicwf_rx_priv *rx_priv)
+         }
+ #endif
+ 
++		if (skb->len < 4) {
++			dev_kfree_skb(skb);
++			atomic_dec(&rx_priv->msg_rx_cnt);
++			continue;
++		}
+ 		if ((skb->data[2] & USB_TYPE_CFG) !=
+ 		    USB_TYPE_CFG) { // type : data
+ 			aggr_len = pkt_len + RX_HWHRD_LEN;
+@@ -1061,6 +1087,13 @@ int aicwf_process_msg_rxframes(struct aicwf_rx_priv *rx_priv)
+ 			else
+ 				adjust_len = aggr_len;
+ 
++			if ((u32)aggr_len > skb->len ||
++			    (u32)adjust_len > skb->len) {
++				dev_kfree_skb(skb);
++				atomic_dec(&rx_priv->msg_rx_cnt);
++				continue;
++			}
++
+ 			skb_inblock = __dev_alloc_skb(
+ 				aggr_len + CCMP_OR_WEP_INFO,
+ 				GFP_KERNEL); //8 is for ccmp mic or wep icv
+@@ -1087,6 +1120,13 @@ int aicwf_process_msg_rxframes(struct aicwf_rx_priv *rx_priv)
+ 			else
+ 				adjust_len = aggr_len;
+ 
++			if ((u32)aggr_len + 4 > skb->len ||
++			    (u32)adjust_len + 4 > skb->len) {
++				dev_kfree_skb(skb);
++				atomic_dec(&rx_priv->msg_rx_cnt);
++				continue;
++			}
++
+ 			msg = kmalloc(aggr_len + 4, GFP_KERNEL);
+ 			if (msg == NULL) {
+ 				txrx_err("no more space for msg!\n");
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_usb.c b/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_usb.c
+index 12cacd7..3f6f4c3 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_usb.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/aicwf_usb.c
+@@ -438,6 +438,14 @@ static void aicwf_usb_rx_complete(struct urb *urb)
+ #endif
+ 
+ 	if (usb_dev->state == USB_UP_ST) {
++		if (unlikely(urb->actual_length > skb_tailroom(skb))) {
++			usb_err("usb_rx skb_tailroom overflow %u/%u\n",
++				urb->actual_length, skb_tailroom(skb));
++			aicwf_dev_skb_free(skb);
++			aicwf_usb_rx_buf_put(usb_dev, usb_buf);
++			aicwf_usb_rx_submit_all_urb_(usb_dev);
++			return;
++		}
+ 		skb_put(skb, urb->actual_length);
+ 
+ 		if (aicwf_usb_rx_aggr) {
+@@ -718,6 +726,14 @@ static void aicwf_usb_msg_rx_complete(struct urb *urb)
+ 	}
+ 
+ 	if (usb_dev->state == USB_UP_ST) {
++		if (unlikely(urb->actual_length > skb_tailroom(skb))) {
++			usb_err("usb_msg_rx skb_tailroom overflow %u/%u\n",
++				urb->actual_length, skb_tailroom(skb));
++			aicwf_dev_skb_free(skb);
++			aicwf_usb_msg_rx_buf_put(usb_dev, usb_buf);
++			aicwf_usb_msg_rx_submit_all_urb_(usb_dev);
++			return;
++		}
+ 		skb_put(skb, urb->actual_length);
+ 
+ #ifdef CONFIG_USB_RX_REASSEMBLE
+@@ -2567,7 +2583,7 @@ static int aicwf_usb_chipmatch(struct aic_usb_dev *usb_dev, u16_l vid,
+ 		AICWFDBG(LOGINFO, "%s USE AIC8800DW\r\n", __func__);
+ 		return 0;
+ 	} else if (pid == USB_PRODUCT_ID_AIC8800D81 ||
+-		   pid == USB_PRODUCT_ID_AIC8800D41) {
++		   pid == USB_PRODUCT_ID_AIC8800D81) {
+ 		usb_dev->chipid = PRODUCT_ID_AIC8800D81;
+ 		aicwf_usb_rx_aggr = true;
+ 		AICWFDBG(LOGINFO, "%s USE AIC8800D81\r\n", __func__);
+@@ -2860,7 +2876,7 @@ static struct usb_device_id aicwf_usb_id_table[] = {
+ 					USB_PRODUCT_ID_AIC8800D81, 0xff, 0xff,
+ 					0xff) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_AIC,
+-					USB_PRODUCT_ID_AIC8800D41, 0xff, 0xff,
++					USB_PRODUCT_ID_AIC8800D81, 0xff, 0xff,
+ 					0xff) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_AIC,
+ 					USB_PRODUCT_ID_AIC8800DC, 0xff, 0xff,
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_fw_dump.c b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_fw_dump.c
+index 43d01ca..aa33ce7 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_fw_dump.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_fw_dump.c
+@@ -452,24 +452,9 @@ DEBUGFS_READ_WRITE_FILE_OPS(um_helper);
+  */
+ int rwnx_um_helper(struct rwnx_debugfs *rwnx_debugfs, const char *cmd)
+ {
+-	char *envp[] = { "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
+-	char **argv;
+-	int argc, ret;
+-
+-	if (!rwnx_debugfs->dir ||
+-	    !strlen((cmd = cmd ? cmd : rwnx_debugfs->helper_cmd)))
+-		return 0;
+-	argv = argv_split(in_interrupt() ? GFP_ATOMIC : GFP_KERNEL, cmd, &argc);
+-	if (!argc)
+-		return PTR_ERR(argv);
+-
+-	if ((ret = call_usermodehelper(argv[0], argv, envp,
+-				       UMH_WAIT_PROC | UMH_KILLABLE)))
+-		printk(KERN_CRIT "Failed to call %s (%s returned %d)\n",
+-		       argv[0], cmd, ret);
+-	argv_free(argv);
+-
+-	return ret;
++	(void)rwnx_debugfs;
++	(void)cmd;
++	return 0;
+ }
+ 
+ static void rwnx_um_helper_work(struct work_struct *ws)
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_main.c b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_main.c
+index e2a5a76..9ae9389 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -535,10 +535,10 @@ struct semaphore aicwf_deinit_sem;
+ atomic_t aicwf_deinit_atomic;
+ 
+ int aicwf_dbg_level = LOGERROR | LOGINFO;
+-module_param(aicwf_dbg_level, int, 0660);
++module_param(aicwf_dbg_level, int, 0400);
+ #ifdef CONFIG_DYNAMIC_PWR
+ int dynamic_pwr = 1;
+-module_param(dynamic_pwr, int, 0660);
++module_param(dynamic_pwr, int, 0400);
+ #endif
+ 
+ int testmode = 0;
+@@ -551,19 +551,19 @@ void rwnx_skb_align_8bytes(struct sk_buff *skb)
+ 	u8 *data;
+ 	size_t len = 0;
+ 
++	if (!skb || skb->len < 14)
++		return;
++
+ 	align = ((unsigned long)(skb->data + 14)) & 7;
+ 	if (align) {
+-		if (WARN_ON(skb_headroom(skb) < 7)) {
+-			dev_kfree_skb(skb);
+-			skb = NULL;
++		if (skb_headroom(skb) < align) {
++			return;
+ 		} else {
+-			//printk("AIDEN align1:%d rx_skb->data + 14:%p\r\n", align, skb->data + 14);
+ 			data = skb->data;
+ 			len = skb_headlen(skb);
+ 			skb->data -= align;
+ 			memmove(skb->data, data, len);
+ 			skb_set_tail_pointer(skb, len);
+-			//printk("AIDEN align2:%d rx_skb->data + 14:%p\r\n", align, skb->data + 14);
+ 		}
+ 	}
+ #endif
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_msg_rx.c b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_msg_rx.c
+index 3c0f587..1d28976 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_msg_rx.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_msg_rx.c
+@@ -51,7 +51,7 @@ static int rwnx_freq_to_idx(struct rwnx_hw *rwnx_hw, int freq)
+ 		}
+ 	}
+ 
+-	BUG_ON(1);
++	return -1;
+ 
+ exit:
+ 	// Channel has been found, return the index
+@@ -307,10 +307,10 @@ static inline int rwnx_rx_p2p_vif_ps_change_ind(struct rwnx_hw *rwnx_hw,
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+ #ifdef CONFIG_RWNX_FULLMAC
+-	vif_entry = rwnx_hw->vif_table[vif_idx];
+-
+-	if (vif_entry) {
+-		goto found_vif;
++	if (vif_idx >= 0 && vif_idx < NX_VIRT_DEV_MAX) {
++		vif_entry = rwnx_hw->vif_table[vif_idx];
++		if (vif_entry)
++			goto found_vif;
+ 	}
+ #endif /* CONFIG_RWNX_FULLMAC */
+ 
+@@ -348,7 +348,7 @@ static inline int rwnx_rx_channel_survey_ind(struct rwnx_hw *rwnx_hw,
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-	if (idx > ARRAY_SIZE(rwnx_hw->survey))
++	if (idx < 0 || idx >= ARRAY_SIZE(rwnx_hw->survey))
+ 		return 0;
+ 
+ 	rwnx_survey = &rwnx_hw->survey[idx];
+@@ -387,6 +387,8 @@ static inline int rwnx_rx_rssi_status_ind(struct rwnx_hw *rwnx_hw,
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+ #ifdef CONFIG_RWNX_FULLMAC
++	if (vif_idx < 0 || vif_idx >= NX_VIRT_DEV_MAX)
++		return 0;
+ 	vif_entry = rwnx_hw->vif_table[vif_idx];
+ 	if (vif_entry) {
+ 		cfg80211_cqm_rssi_notify(
+@@ -411,6 +413,8 @@ static inline int rwnx_rx_pktloss_notify_ind(struct rwnx_hw *rwnx_hw,
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
++	if (vif_idx < 0 || vif_idx >= NX_VIRT_DEV_MAX)
++		return 0;
+ 	vif_entry = rwnx_hw->vif_table[vif_idx];
+ 	if (vif_entry) {
+ 		cfg80211_cqm_pktloss_notify(vif_entry->ndev,
+@@ -438,8 +442,9 @@ static inline int rwnx_radar_detect_ind(struct rwnx_hw *rwnx_hw,
+ 		return -1;
+ 	}
+ 
+-	if (rwnx_radar_detection_is_enable(&rwnx_hw->radar, pulses->idx)) {
+-		for (i = 0; i < pulses->cnt; i++) {
++	if (pulses->idx < ARRAY_SIZE(rwnx_hw->radar.pulses) &&
++	    rwnx_radar_detection_is_enable(&rwnx_hw->radar, pulses->idx)) {
++		for (i = 0; i < min_t(u32, pulses->cnt, 4); i++) {
+ 			struct rwnx_radar_pulses *p =
+ 				&rwnx_hw->radar.pulses[pulses->idx];
+ 
+@@ -593,24 +598,24 @@ static inline int rwnx_rx_ps_change_ind(struct rwnx_hw *rwnx_hw,
+ 					struct ipc_e2a_msg *msg)
+ {
+ 	struct mm_ps_change_ind *ind = (struct mm_ps_change_ind *)msg->param;
+-	struct rwnx_sta *sta = &rwnx_hw->sta_table[ind->sta_idx];
++	struct rwnx_sta *sta;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-#if 1 //2022-01-15 add for rwnx_hw->vif_table[sta->vif_idx] if null when rwnx_close
+-	if (!rwnx_hw->vif_table[sta->vif_idx]) {
+-		wiphy_err(rwnx_hw->wiphy,
+-			  "rwnx_hw->vif_table[sta->vif_idx] is null\n");
+-		return 0;
+-	}
+-#endif
+-
+ 	if (ind->sta_idx >= (NX_REMOTE_STA_MAX + NX_VIRT_DEV_MAX)) {
+ 		wiphy_err(rwnx_hw->wiphy,
+ 			  "Invalid sta index reported by fw %d\n",
+ 			  ind->sta_idx);
+ 		return 1;
+ 	}
++	sta = &rwnx_hw->sta_table[ind->sta_idx];
++
++	if (sta->vif_idx >= NX_VIRT_DEV_MAX ||
++	    !rwnx_hw->vif_table[sta->vif_idx]) {
++		wiphy_err(rwnx_hw->wiphy,
++			  "rwnx_hw->vif_table[sta->vif_idx] is null or invalid\n");
++		return 0;
++	}
+ 
+ 	netdev_dbg(rwnx_hw->vif_table[sta->vif_idx]->ndev,
+ 		   "Sta %d, change PS mode to %s", sta->sta_idx,
+@@ -634,10 +639,17 @@ static inline int rwnx_rx_traffic_req_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct mm_traffic_req_ind *ind =
+ 		(struct mm_traffic_req_ind *)msg->param;
+-	struct rwnx_sta *sta = &rwnx_hw->sta_table[ind->sta_idx];
++	struct rwnx_sta *sta;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
++	if (ind->sta_idx >= (NX_REMOTE_STA_MAX + NX_VIRT_DEV_MAX))
++		return 1;
++	sta = &rwnx_hw->sta_table[ind->sta_idx];
++	if (sta->vif_idx >= NX_VIRT_DEV_MAX ||
++	    !rwnx_hw->vif_table[sta->vif_idx])
++		return 1;
++
+ 	netdev_dbg(rwnx_hw->vif_table[sta->vif_idx]->ndev,
+ 		   "Sta %d, asked for %d pkt", sta->sta_idx, ind->pkt_cnt);
+ 
+@@ -771,6 +783,10 @@ static inline int rwnx_rx_scanu_result_ind(struct rwnx_hw *rwnx_hw,
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
++	if (len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable) ||
++	    len > 512)
++		return -EINVAL;
++
+ 	chan = ieee80211_get_channel(rwnx_hw->wiphy, ind->center_freq);
+ 
+ 	if (chan != NULL) {
+@@ -888,8 +904,15 @@ static inline int rwnx_rx_me_tkip_mic_failure_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct me_tkip_mic_failure_ind *ind =
+ 		(struct me_tkip_mic_failure_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
+-	struct net_device *dev = rwnx_vif->ndev;
++	struct rwnx_vif *rwnx_vif;
++	struct net_device *dev;
++
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX)
++		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	if (!rwnx_vif || !rwnx_vif->ndev)
++		return 1;
++	dev = rwnx_vif->ndev;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+@@ -958,7 +981,7 @@ static inline int rwnx_rx_sm_connect_ind(struct rwnx_hw *rwnx_hw,
+ 					 struct ipc_e2a_msg *msg)
+ {
+ 	struct sm_connect_ind *ind = (struct sm_connect_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	struct rwnx_vif *rwnx_vif;
+ 	struct net_device *dev = NULL;
+ 	const u8 *req_ie, *rsp_ie;
+ 	const u8 *extcap_ie;
+@@ -970,6 +993,12 @@ static inline int rwnx_rx_sm_connect_ind(struct rwnx_hw *rwnx_hw,
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX ||
++	    ((u32)ind->assoc_req_ie_len + (u32)ind->assoc_rsp_ie_len >
++	     sizeof(ind->assoc_ie_buf)))
++		return -EINVAL;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++
+ 	if (!rwnx_vif) {
+ 		AICWFDBG(LOGERROR, "%s rwnx_vif is null \r\n", __func__);
+ 		return 0;
+@@ -988,10 +1017,15 @@ static inline int rwnx_rx_sm_connect_ind(struct rwnx_hw *rwnx_hw,
+ 	AICWFDBG(LOGINFO, "%s ind->status_code:%d \r\n", __func__,
+ 		 ind->status_code);
+ 	if (ind->status_code == 0) {
+-		struct rwnx_sta *sta = &rwnx_hw->sta_table[ind->ap_idx];
++		struct rwnx_sta *sta;
+ 		u8 txq_status;
+ 		struct cfg80211_chan_def chandef;
+ 
++		if (ind->ap_idx >= (NX_REMOTE_STA_MAX + NX_VIRT_DEV_MAX) ||
++		    ind->width >= PHY_CHNL_BW_OTHER)
++			return -EINVAL;
++		sta = &rwnx_hw->sta_table[ind->ap_idx];
++
+ 		sta->valid = true;
+ 		sta->sta_idx = ind->ap_idx;
+ 		sta->ch_idx = ind->ch_idx;
+@@ -1009,6 +1043,8 @@ static inline int rwnx_rx_sm_connect_ind(struct rwnx_hw *rwnx_hw,
+ 		rwnx_vif->sta.ap = sta;
+ 
+ 		chan = ieee80211_get_channel(rwnx_hw->wiphy, ind->center_freq);
++		if (!chan)
++			return -EINVAL;
+ 		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+ 		if (!rwnx_hw->mod_params->ht_on)
+ 			chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+@@ -1261,7 +1297,7 @@ static inline int rwnx_rx_sm_disconnect_ind(struct rwnx_hw *rwnx_hw,
+ 					    struct ipc_e2a_msg *msg)
+ {
+ 	struct sm_disconnect_ind *ind = (struct sm_disconnect_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	struct rwnx_vif *rwnx_vif;
+ 	struct net_device *dev;
+ #ifdef AICWF_RX_REORDER
+ 	struct reord_ctrl_info *reord_info, *tmp;
+@@ -1269,7 +1305,14 @@ static inline int rwnx_rx_sm_disconnect_ind(struct rwnx_hw *rwnx_hw,
+ 	struct aicwf_rx_priv *rx_priv;
+ #endif
+ 
+-	//RWNX_DBG(RWNX_FN_ENTRY_STR);
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX)
++		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	if (!rwnx_vif) {
++		AICWFDBG(LOGERROR, "%s rwnx_vif is null \r\n", __func__);
++		return 0;
++	}
++
+ 	AICWFDBG(LOGINFO, "%s reason code:%d \r\n", __func__, ind->reason_code);
+ 	if ((int)atomic_read(&rwnx_vif->drv_conn_state) ==
+ 	    (int)RWNX_DRV_STATUS_DISCONNECTED) {
+@@ -1280,12 +1323,6 @@ static inline int rwnx_rx_sm_disconnect_ind(struct rwnx_hw *rwnx_hw,
+ 	}
+ 
+ 	dhcped = 0;
+-
+-	if (!rwnx_vif) {
+-		AICWFDBG(LOGERROR, "%s rwnx_vif is null \r\n", __func__);
+-		//atomic_set(&rwnx_vif->drv_conn_state, RWNX_DRV_STATUS_DISCONNECTED);
+-		return 0;
+-	}
+ 	dev = rwnx_vif->ndev;
+ 	if (rwnx_vif->sta.is_roam == false) {
+ 		rwnx_cfg80211_unlink_bss(rwnx_hw, rwnx_vif);
+@@ -1351,16 +1388,18 @@ static inline int rwnx_rx_sm_disconnect_ind(struct rwnx_hw *rwnx_hw,
+ 		}
+ 	} else if ((rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP) ||
+ 		   (rwnx_vif->wdev.iftype == NL80211_IFTYPE_P2P_GO))
+-		BUG(); //should be not here: del_sta function
++		{
++		WARN_ON_ONCE(1);
++		return -EINVAL;
++	}
+ #endif
+ 
+-	rwnx_txq_sta_deinit(rwnx_hw, rwnx_vif->sta.ap);
++	if (rwnx_vif->sta.ap) {
++		rwnx_txq_sta_deinit(rwnx_hw, rwnx_vif->sta.ap);
++		rwnx_vif->sta.ap->valid = false;
++		rwnx_vif->sta.ap = NULL;
++	}
+ 	rwnx_txq_tdls_vif_deinit(rwnx_vif);
+-#if 0
+-    rwnx_dbgfs_unregister_rc_stat(rwnx_hw, rwnx_vif->sta.ap);
+-#endif
+-	rwnx_vif->sta.ap->valid = false;
+-	rwnx_vif->sta.ap = NULL;
+ 	rwnx_external_auth_disable(rwnx_vif);
+ 	rwnx_chanctx_unlink(rwnx_vif);
+ 
+@@ -1379,17 +1418,25 @@ static inline int rwnx_rx_sm_external_auth_required_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct sm_external_auth_required_ind *ind =
+ 		(struct sm_external_auth_required_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	struct rwnx_vif *rwnx_vif;
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0) || \
+ 	defined(CONFIG_WPA3_FOR_OLD_KERNEL)
+-	struct net_device *dev = rwnx_vif->ndev;
++	struct net_device *dev;
+ 	struct cfg80211_external_auth_params params;
+ 	int ret = 0;
+-	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct wireless_dev *wdev;
+ 	int retry_counter = 10;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX)
++		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	if (!rwnx_vif || !rwnx_vif->ndev)
++		return 1;
++	dev = rwnx_vif->ndev;
++	wdev = dev->ieee80211_ptr;
++
+ 	memset((void *)&params, 0,
+ 	       sizeof(struct cfg80211_external_auth_params));
+ 
+@@ -1441,7 +1488,11 @@ static inline int rwnx_rx_mesh_path_create_cfm(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct mesh_path_create_cfm *cfm =
+ 		(struct mesh_path_create_cfm *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[cfm->vif_idx];
++	struct rwnx_vif *rwnx_vif;
++
++	if (cfm->vif_idx >= NX_VIRT_DEV_MAX)
++		return 1;
++	rwnx_vif = rwnx_hw->vif_table[cfm->vif_idx];
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+@@ -1460,15 +1511,18 @@ static inline int rwnx_rx_mesh_peer_update_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct mesh_peer_update_ind *ind =
+ 		(struct mesh_peer_update_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
+-	struct rwnx_sta *rwnx_sta = &rwnx_hw->sta_table[ind->sta_idx];
++	struct rwnx_vif *rwnx_vif;
++	struct rwnx_sta *rwnx_sta;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-	if ((ind->vif_idx >= (NX_VIRT_DEV_MAX + NX_REMOTE_STA_MAX)) ||
+-	    (rwnx_vif &&
+-	     (RWNX_VIF_TYPE(rwnx_vif) != NL80211_IFTYPE_MESH_POINT)) ||
+-	    (ind->sta_idx >= NX_REMOTE_STA_MAX))
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX ||
++	    ind->sta_idx >= NX_REMOTE_STA_MAX)
++		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	rwnx_sta = &rwnx_hw->sta_table[ind->sta_idx];
++	if (!rwnx_vif ||
++	    RWNX_VIF_TYPE(rwnx_vif) != NL80211_IFTYPE_MESH_POINT)
+ 		return 1;
+ 
+ 	/* Check we well have a Mesh Point Interface */
+@@ -1567,14 +1621,16 @@ static inline int rwnx_rx_mesh_path_update_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct mesh_path_update_ind *ind =
+ 		(struct mesh_path_update_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	struct rwnx_vif *rwnx_vif;
+ 	struct rwnx_mesh_path *mesh_path;
+ 	bool found = false;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-	if (ind->vif_idx >= (NX_VIRT_DEV_MAX + NX_REMOTE_STA_MAX))
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX ||
++	    ind->nhop_sta_idx >= NX_REMOTE_STA_MAX)
+ 		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
+ 
+ 	if (!rwnx_vif || (RWNX_VIF_TYPE(rwnx_vif) != NL80211_IFTYPE_MESH_POINT))
+ 		return 0;
+@@ -1639,14 +1695,15 @@ static inline int rwnx_rx_mesh_proxy_update_ind(struct rwnx_hw *rwnx_hw,
+ {
+ 	struct mesh_proxy_update_ind *ind =
+ 		(struct mesh_proxy_update_ind *)msg->param;
+-	struct rwnx_vif *rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
++	struct rwnx_vif *rwnx_vif;
+ 	struct rwnx_mesh_proxy *mesh_proxy;
+ 	bool found = false;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-	if (ind->vif_idx >= (NX_VIRT_DEV_MAX + NX_REMOTE_STA_MAX))
++	if (ind->vif_idx >= NX_VIRT_DEV_MAX)
+ 		return 1;
++	rwnx_vif = rwnx_hw->vif_table[ind->vif_idx];
+ 
+ 	if (!rwnx_vif || (RWNX_VIF_TYPE(rwnx_vif) != NL80211_IFTYPE_MESH_POINT))
+ 		return 0;
+@@ -1781,14 +1838,59 @@ static msg_cb_fct *msg_hdlrs[] = {
+  */
+ void rwnx_rx_handle_msg(struct rwnx_hw *rwnx_hw, struct ipc_e2a_msg *msg)
+ {
+-	//printk("%s(%d) MSG_T(msg->id):%d MSG_I(msg->id):%d cmd:%s\r\n", __func__,
+-	//	msg->id,
+-	//	MSG_T(msg->id),
+-	//	MSG_I(msg->id),
+-	//	rwnx_id2str[MSG_T(msg->id)][MSG_I(msg->id)]);
+-
+-	rwnx_hw->cmd_mgr->msgind(rwnx_hw->cmd_mgr, msg,
+-				 msg_hdlrs[MSG_T(msg->id)][MSG_I(msg->id)]);
++	u16 task;
++	u16 idx;
++	msg_cb_fct hdlr = NULL;
++
++	if (!rwnx_hw || !msg || !rwnx_hw->cmd_mgr)
++		return;
++
++	task = MSG_T(msg->id);
++	idx = MSG_I(msg->id);
++
++	if (task >= ARRAY_SIZE(msg_hdlrs) || !msg_hdlrs[task])
++		return;
++
++	switch (task) {
++	case TASK_MM:
++		if (idx < MSG_I(MM_MAX))
++			hdlr = mm_hdlrs[idx];
++		break;
++	case TASK_DBG:
++		if (idx < MSG_I(DBG_MAX))
++			hdlr = dbg_hdlrs[idx];
++		break;
++#ifdef CONFIG_RWNX_FULLMAC
++	case TASK_TDLS:
++		if (idx < MSG_I(TDLS_MAX))
++			hdlr = tdls_hdlrs[idx];
++		break;
++	case TASK_SCANU:
++		if (idx < MSG_I(SCANU_MAX))
++			hdlr = scan_hdlrs[idx];
++		break;
++	case TASK_ME:
++		if (idx < MSG_I(ME_MAX))
++			hdlr = me_hdlrs[idx];
++		break;
++	case TASK_SM:
++		if (idx < MSG_I(SM_MAX))
++			hdlr = sm_hdlrs[idx];
++		break;
++	case TASK_APM:
++		if (idx < MSG_I(APM_MAX))
++			hdlr = apm_hdlrs[idx];
++		break;
++	case TASK_MESH:
++		if (idx < MSG_I(MESH_MAX))
++			hdlr = mesh_hdlrs[idx];
++		break;
++#endif
++	default:
++		return;
++	}
++
++	rwnx_hw->cmd_mgr->msgind(rwnx_hw->cmd_mgr, msg, hdlr);
+ }
+ 
+ void rwnx_rx_handle_print(struct rwnx_hw *rwnx_hw, u8 *msg, u32 len)
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_platform.c b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_platform.c
+index 9d586aa..3d30b7a 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_platform.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_platform.c
+@@ -1605,7 +1605,7 @@ static int rwnx_plat_patch_load(struct rwnx_hw *rwnx_hw)
+ 	if (rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DC ||
+ 	    rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DW) {
+ #ifndef ANDROID_PLATFORM
+-		sprintf(aic_fw_path, "%s/%s", aic_fw_path, "aic8800DC");
++		strlcat(aic_fw_path, "/aic8800DC", sizeof(aic_fw_path));
+ #endif
+ 		AICWFDBG(LOGINFO, "testmode=%d\n", testmode);
+ 		if (chip_sub_id == 0) {
+@@ -3398,23 +3398,29 @@ void rwnx_plat_userconfig_parsing_8800d80x2(char *buffer, int size)
+ 		//Fill data to command and value
+ 		if (parse_state == PRINT) {
+ 			command[0] = 0x01;
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == CMD) {
+ 			if (command[0] != 0 && buffer[i] == '=') {
+ 				parse_state = GET_VALUE;
+ 				char_counter = 0;
+ 				continue;
+ 			}
+-			command[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(command) - 1) {
++				command[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == GET_VALUE) {
+ 			if (buffer[i] != 0x2D &&
+ 			    (buffer[i] < 0x30 || buffer[i] > 0x39)) {
+ 				continue;
+ 			}
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		}
+ 	}
+ }
+@@ -3466,23 +3472,29 @@ void rwnx_plat_userconfig_parsing(char *buffer, int size)
+ 		//Fill data to command and value
+ 		if (parse_state == PRINT) {
+ 			command[0] = 0x01;
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == CMD) {
+ 			if (command[0] != 0 && buffer[i] == '=') {
+ 				parse_state = GET_VALUE;
+ 				char_counter = 0;
+ 				continue;
+ 			}
+-			command[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(command) - 1) {
++				command[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == GET_VALUE) {
+ 			if (buffer[i] != 0x2D &&
+ 			    (buffer[i] < 0x30 || buffer[i] > 0x39)) {
+ 				continue;
+ 			}
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		}
+ 	}
+ }
+@@ -3522,8 +3534,13 @@ int ParseQualifiedString(char *In, u32 *Start, char *Out, char LeftQualifier,
+ 		c = In[(*Start)++];
+ 	if (c == '\0')
+ 		return 0;
++	if (*Start < 2)
++		return 0;
+ 	j = (*Start) - 2;
+-	strncpy((char *)Out, (const char *)(In + i), j - i + 1);
++	if (j < i)
++		return 0;
++	strncpy((char *)Out, (const char *)(In + i), min_t(u32, j - i + 1, 9));
++	Out[9] = 0;
+ 	return 1;
+ }
+ 
+@@ -3829,8 +3846,10 @@ void rwnx_plat_powerlimit_parsing(char *buffer, int size, char *cc)
+ 			/* load the channel number */
+ 			cnt = 0;
+ 			while (szLine[i] >= '0' && szLine[i] <= '9') {
+-				channel[cnt] = szLine[i];
+-				++cnt;
++				if (cnt < sizeof(channel) - 1) {
++					channel[cnt] = szLine[i];
++					++cnt;
++				}
+ 				++i;
+ 			}
+ 
+@@ -3856,13 +3875,15 @@ void rwnx_plat_powerlimit_parsing(char *buffer, int size, char *cc)
+ 					/* case of dBm value */
+ 					cnt = 0;
+ 					while ((szLine[i] >= '0' &&
+-						szLine[i] <= '9') ||
+-					       szLine[i] == '+' ||
+-					       szLine[i] == '-') {
++					szLine[i] <= '9') ||
++				       szLine[i] == '+' ||
++				       szLine[i] == '-') {
++					if (cnt < sizeof(powerLimit) - 1) {
+ 						powerLimit[cnt] = szLine[i];
+ 						++cnt;
+-						++i;
+ 					}
++					++i;
++				}
+ 				} else {
+ 					AICWFDBG(
+ 						LOGERROR,
+diff --git a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_rx.c b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_rx.c
+index a5962bc..e527741 100644
+--- a/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_rx.c
++++ b/drivers/aic8800/aic8800/aic8800_fdrv/rwnx_rx.c
+@@ -465,6 +465,8 @@ static bool rwnx_rx_data_skb(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 	    !(rwnx_vif->ap.flags & RWNX_AP_ISOLATE)) {
+ 		const struct ethhdr *eth;
+ 		rx_skb = skb_peek(&list);
++		if (!rx_skb || rx_skb->len < sizeof(struct ethhdr))
++			return false;
+ 		skb_reset_mac_header(rx_skb);
+ 		eth = eth_hdr(rx_skb);
+ 
+@@ -475,7 +477,8 @@ static bool rwnx_rx_data_skb(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 		} else {
+ 			/* unicast pkt for STA inside the BSS, no need to forward to upper
+                layer simply resend on wireless interface */
+-			if (flags_dst_idx != RWNX_INVALID_STA) {
++			if (flags_dst_idx != RWNX_INVALID_STA &&
++			    flags_dst_idx < (NX_REMOTE_STA_MAX + NX_VIRT_DEV_MAX)) {
+ 				struct rwnx_sta *sta =
+ 					&rwnx_hw->sta_table[flags_dst_idx];
+ 				if (sta->valid &&
+@@ -488,6 +491,8 @@ static bool rwnx_rx_data_skb(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 	} else if (RWNX_VIF_TYPE(rwnx_vif) == NL80211_IFTYPE_MESH_POINT) {
+ 		const struct ethhdr *eth;
+ 		rx_skb = skb_peek(&list);
++		if (!rx_skb || rx_skb->len < sizeof(struct ethhdr))
++			return false;
+ 		skb_reset_mac_header(rx_skb);
+ 		eth = eth_hdr(rx_skb);
+ 
+@@ -674,14 +679,18 @@ static inline const u8 *cfg80211_find_ext_ie(u8 ext_eid, const u8 *ies, int len)
+ static void rwnx_rx_mgmt(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 			 struct sk_buff *skb, struct hw_rxhdr *hw_rxhdr)
+ {
+-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
++	struct ieee80211_mgmt *mgmt;
+ 	struct rx_vector_1 *rxvect = &hw_rxhdr->hwvect.rx_vect1;
+ #ifdef CONFIG_HE_FOR_OLD_KERNEL
+ 	struct ieee80211_he_cap_elem *he;
+ 	struct ieee80211_he_mcs_nss_supp *he_mcs;
+ #endif
+ 
+-	//printk("rwnx_rx_mgmt\n");
++	if (!skb || skb->len < 24 || skb->len > 768)
++		return;
++
++	mgmt = (struct ieee80211_mgmt *)skb->data;
++
+ 	if (skb->data[0] != 0x80)
+ 		AICWFDBG(LOGDEBUG, "rxmgmt:%x,%x\n", skb->data[0],
+ 			 skb->data[1]);
+@@ -693,6 +702,8 @@ static void rwnx_rx_mgmt(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 
+ 	if (ieee80211_is_assoc_req(mgmt->frame_control) &&
+ 	    rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP) {
++		if (skb->len < offsetof(struct ieee80211_mgmt, u.assoc_req.variable))
++			return;
+ 		printk("ASSOC_REQ: sta_idx %d MAC %pM\n",
+ 		       rwnx_vif->ap.aic_index, mgmt->sa);
+ 		sta->sta_idx = rwnx_vif->ap.aic_index;
+@@ -735,26 +746,24 @@ static void rwnx_rx_mgmt(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ #endif
+ 	}
+ 	if (ieee80211_is_deauth(mgmt->frame_control) &&
+-	    rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP) {
++	    rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP &&
++	    skb->len >= 26) {
+ 		printk("DEAUTH: sta_idx %d MAC %pM reason:%x\n",
+ 		       rwnx_vif->ap.aic_index, mgmt->sa,
+ 		       mgmt->u.deauth.reason_code);
+ 	}
+ 	if (ieee80211_is_disassoc(mgmt->frame_control) &&
+-	    rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP) {
++	    rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP &&
++	    skb->len >= offsetof(struct ieee80211_mgmt, u.disassoc.variable)) {
+ 		printk("DISASSOC: sta_idx %d MAC %pM reason:%x\n",
+ 		       rwnx_vif->ap.aic_index, mgmt->sa,
+ 		       mgmt->u.disassoc.reason_code);
+ 	}
+ #endif
+ 
+-	/*if (ieee80211_is_mgmt(mgmt->frame_control) &&
+-        (skb->len <= 24 || skb->len > 768)) {
+-        printk("mgmt err\n");
+-        return;
+-    }*/
+-
+ 	if (ieee80211_is_beacon(mgmt->frame_control)) {
++		if (skb->len < offsetof(struct ieee80211_mgmt, u.beacon.variable))
++			return;
+ 		if ((RWNX_VIF_TYPE(rwnx_vif) == NL80211_IFTYPE_MESH_POINT) &&
+ 		    hw_rxhdr->flags_new_peer) {
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+@@ -788,6 +797,7 @@ static void rwnx_rx_mgmt(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 		}
+ 	} else if ((ieee80211_is_deauth(mgmt->frame_control) ||
+ 		    ieee80211_is_disassoc(mgmt->frame_control)) &&
++		   skb->len >= 26 &&
+ 		   (mgmt->u.deauth.reason_code ==
+ 			    WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA ||
+ 		    mgmt->u.deauth.reason_code ==
+@@ -797,8 +807,9 @@ static void rwnx_rx_mgmt(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ 					     skb->len);
+ #endif
+ 	} else if ((RWNX_VIF_TYPE(rwnx_vif) == NL80211_IFTYPE_STATION) &&
+-		   (ieee80211_is_action(mgmt->frame_control) &&
+-		    (mgmt->u.action.category == 6))) {
++		   ieee80211_is_action(mgmt->frame_control) &&
++		   skb->len >= offsetof(struct ieee80211_mgmt, u.action) + ETH_ALEN * 2 + 2 &&
++		   (mgmt->u.action.category == 6)) {
+ 		struct cfg80211_ft_event_params ft_event;
+ 		ft_event.target_ap = (uint8_t *)&mgmt->u.action + ETH_ALEN + 2;
+ 		ft_event.ies = (uint8_t *)&mgmt->u.action + ETH_ALEN * 2 + 2;
+@@ -1312,69 +1323,80 @@ static int rwnx_rx_monitor(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+ #ifdef AICWF_ARP_OFFLOAD
+ void arpoffload_proc(struct sk_buff *skb, struct rwnx_vif *rwnx_vif)
+ {
+-	struct iphdr *iphead = (struct iphdr *)(skb->data);
++	struct iphdr *iphead;
+ 	struct udphdr *udph;
+ 	struct DHCPInfo *dhcph;
++	unsigned int ihl_bytes;
++	unsigned int min_dhcp_len;
++	unsigned int udp_len;
++	unsigned int avail_len;
+ 
+-	if (skb->protocol == htons(ETH_P_IP)) { // IP
+-		if (iphead->protocol == IPPROTO_UDP) { // UDP
+-			udph = (struct udphdr *)((u8 *)iphead +
+-						 (iphead->ihl << 2));
+-			if ((udph->source == __constant_htons(SERVER_PORT)) &&
+-			    (udph->dest ==
+-			     __constant_htons(CLIENT_PORT))) { // DHCP offset/ack
+-				AICWFDBG(LOGDEBUG, "dhcp: offer / ack\n");
+-				dhcph = (struct DHCPInfo
+-						 *)((u8 *)udph +
+-						    sizeof(struct udphdr));
+-				if (dhcph->cookie == htonl(DHCP_MAGIC) &&
+-				    dhcph->op == 2 &&
+-				    !memcmp(dhcph->chaddr,
+-					    rwnx_vif->ndev->dev_addr,
+-					    6)) { // match magic word
+-					u32 length = ntohs(udph->len) -
+-						     sizeof(struct udphdr) -
+-						     offsetof(struct DHCPInfo,
+-							      options);
+-					u16 offset = 0;
+-					u8 *option = dhcph->options;
+-					while (option[offset] !=
+-						       DHCP_OPTION_END &&
+-					       offset < length) {
+-						if (option[offset] ==
+-						    DHCP_OPTION_MESSAGE_TYPE) {
+-							if (option[offset + 2] ==
+-							    DHCP_ACK) {
+-								AICWFDBG(
+-									LOGDEBUG,
+-									"dhcp:   ack\n");
+-								dhcped = 1;
+-								if (rwnx_vif->sta.paired_cipher_type ==
+-									    WLAN_CIPHER_SUITE_CCMP ||
+-								    rwnx_vif->sta.paired_cipher_type ==
+-									    WLAN_CIPHER_SUITE_AES_CMAC ||
+-								    ((rwnx_vif->sta
+-									      .group_cipher_type ==
+-								      0xff) &&
+-								     (rwnx_vif->sta
+-									      .paired_cipher_type ==
+-								      0xff)))
+-									rwnx_send_arpoffload_en_req(
+-										rwnx_vif->rwnx_hw,
+-										rwnx_vif,
+-										dhcph->yiaddr,
+-										1);
+-								else
+-									rwnx_send_arpoffload_en_req(
+-										rwnx_vif->rwnx_hw,
+-										rwnx_vif,
+-										dhcph->yiaddr,
+-										0);
+-							}
++	if (!skb || !rwnx_vif || !rwnx_vif->ndev)
++		return;
++	if (skb->len < sizeof(struct iphdr))
++		return;
++
++	iphead = (struct iphdr *)(skb->data);
++	if (skb->protocol == htons(ETH_P_IP) && iphead->protocol == IPPROTO_UDP) {
++		ihl_bytes = iphead->ihl << 2;
++		min_dhcp_len = ihl_bytes + sizeof(struct udphdr) +
++			       offsetof(struct DHCPInfo, options);
++		if (ihl_bytes < sizeof(struct iphdr) || skb->len < min_dhcp_len)
++			return;
++
++		udph = (struct udphdr *)((u8 *)iphead + ihl_bytes);
++		udp_len = ntohs(udph->len);
++		if (udp_len < sizeof(struct udphdr) + offsetof(struct DHCPInfo, options))
++			return;
++		if (ihl_bytes + udp_len > skb->len)
++			return;
++
++		if ((udph->source == __constant_htons(SERVER_PORT)) &&
++		    (udph->dest == __constant_htons(CLIENT_PORT))) {
++			AICWFDBG(LOGDEBUG, "dhcp: offer / ack\n");
++			dhcph = (struct DHCPInfo *)((u8 *)udph + sizeof(struct udphdr));
++			if (dhcph->cookie == htonl(DHCP_MAGIC) &&
++			    dhcph->op == 2 &&
++			    !memcmp(dhcph->chaddr, rwnx_vif->ndev->dev_addr, 6)) {
++				u32 length = udp_len - sizeof(struct udphdr) -
++					     offsetof(struct DHCPInfo, options);
++				u32 offset = 0;
++				u8 *option = dhcph->options;
++
++				avail_len = skb->len - min_dhcp_len;
++				if (length > avail_len)
++					length = avail_len;
++
++				while (offset < length && option[offset] != DHCP_OPTION_END) {
++					if (option[offset] == 0) {
++						offset++;
++						continue;
++					}
++					if (offset + 2 > length)
++						break;
++					if (offset + 2 + option[offset + 1] > length)
++						break;
++					if (option[offset] == DHCP_OPTION_MESSAGE_TYPE &&
++					    option[offset + 1] >= 1) {
++						if (option[offset + 2] == DHCP_ACK) {
++							AICWFDBG(LOGDEBUG, "dhcp:   ack\n");
++							dhcped = 1;
++							if (rwnx_vif->sta.paired_cipher_type ==
++								    WLAN_CIPHER_SUITE_CCMP ||
++							    rwnx_vif->sta.paired_cipher_type ==
++								    WLAN_CIPHER_SUITE_AES_CMAC ||
++							    ((rwnx_vif->sta.group_cipher_type == 0xff) &&
++							     (rwnx_vif->sta.paired_cipher_type == 0xff)))
++								rwnx_send_arpoffload_en_req(
++									rwnx_vif->rwnx_hw, rwnx_vif,
++									dhcph->yiaddr, 1);
++							else
++								rwnx_send_arpoffload_en_req(
++									rwnx_vif->rwnx_hw, rwnx_vif,
++									dhcph->yiaddr, 0);
+ 						}
+-						offset +=
+-							2 + option[offset + 1];
+ 					}
++					offset += 2 + option[offset + 1];
+ 				}
+ 			}
+ 		}
+@@ -1457,7 +1479,7 @@ int reord_flush_tid(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u8 tid)
+ 	struct reord_ctrl_info *reord_info;
+ 	struct reord_ctrl *preorder_ctrl;
+ 	struct rwnx_vif *rwnx_vif = (struct rwnx_vif *)rx_priv->rwnx_vif;
+-	struct ethhdr *eh = (struct ethhdr *)(skb->data);
++	struct ethhdr *eh;
+ 	u8 *mac;
+ 	unsigned long flags;
+ 	u8 found = 0;
+@@ -1465,6 +1487,13 @@ int reord_flush_tid(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u8 tid)
+ 	struct recv_msdu *prframe;
+ 	int ret;
+ 
++	if (!skb || skb->len < sizeof(struct ethhdr) || tid >= 8) {
++		if (skb)
++			dev_kfree_skb(skb);
++		return -1;
++	}
++	eh = (struct ethhdr *)(skb->data);
++
+ 	if ((rwnx_vif->wdev.iftype == NL80211_IFTYPE_STATION) ||
+ 	    (rwnx_vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT))
+ 		mac = eh->h_dest;
+@@ -1797,7 +1826,7 @@ void reord_rxframes_ind(struct aicwf_rx_priv *rx_priv,
+ }
+ 
+ int reorder_timeout = REORDER_UPDATE_TIME;
+-module_param(reorder_timeout, int, 0660);
++module_param(reorder_timeout, int, 0400);
+ 
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+ void reord_timeout_handler(ulong data)
+@@ -1862,18 +1891,21 @@ int reord_process_unit(struct recv_msdu *pframe, struct aicwf_rx_priv *rx_priv,
+ 	struct reord_ctrl *preorder_ctrl;
+ 	struct reord_ctrl_info *reord_info;
+ 	struct rwnx_vif *rwnx_vif = (struct rwnx_vif *)rx_priv->rwnx_vif;
+-	struct ethhdr *eh = (struct ethhdr *)(skb->data);
+-	u8 *da = eh->h_dest;
+-	u8 is_mcast = ((*da) & 0x01) ? 1 : 0;
++	struct ethhdr *eh;
++	u8 *da;
++	u8 is_mcast;
+ 
+-#if 0
+-    struct recv_msdu *pframe;
+-    pframe = reord_rxframe_alloc(&rx_priv->freeq_lock, &rx_priv->rxframes_freequeue);
+-    if (!pframe) {
+-        dev_kfree_skb(skb);
+-        return -1;
+-    }
+-#endif
++	if (!skb || skb->len < sizeof(struct ethhdr) || tid >= 8) {
++		if (skb)
++			dev_kfree_skb(skb);
++		reord_rxframe_free(&rx_priv->freeq_lock,
++				   &rx_priv->rxframes_freequeue,
++				   &pframe->rxframe_list);
++		return -1;
++	}
++	eh = (struct ethhdr *)(skb->data);
++	da = eh->h_dest;
++	is_mcast = ((*da) & 0x01) ? 1 : 0;
+ 
+ 	INIT_LIST_HEAD(&pframe->reord_pending_list);
+ 	pframe->seq_num = seq_num;
+@@ -1896,6 +1928,9 @@ int reord_process_unit(struct recv_msdu *pframe, struct aicwf_rx_priv *rx_priv,
+ 		mac = eh->h_source;
+ 	else {
+ 		dev_kfree_skb(skb);
++		reord_rxframe_free(&rx_priv->freeq_lock,
++				   &rx_priv->rxframes_freequeue,
++				   &pframe->rxframe_list);
+ 		return -1;
+ 	}
+ 
+@@ -1940,13 +1975,11 @@ int reord_process_unit(struct recv_msdu *pframe, struct aicwf_rx_priv *rx_priv,
+ 	spin_lock_bh(&preorder_ctrl->reord_list_lock);
+ 	if (reord_need_check(preorder_ctrl, pframe->seq_num)) {
+ #if 1
+-		if (pframe->rx_data[42] == 0x80) { //this is rtp package
++		if (skb->len > 42 && pframe->rx_data[42] == 0x80) { //this is rtp package
+ 			if (pframe->seq_num == preorder_ctrl->ind_sn) {
+-				//printk("%s pframe->seq_num1:%d \r\n", __func__, pframe->seq_num);
+ 				reord_single_frame_ind(
+ 					rx_priv, pframe); //not need to reorder
+ 			} else {
+-				//printk("%s free pframe->seq_num:%d \r\n", __func__, pframe->seq_num);
+ 				if (pframe->pkt) {
+ 					dev_kfree_skb(pframe->pkt);
+ 					pframe->pkt = NULL;
+@@ -1956,7 +1989,6 @@ int reord_process_unit(struct recv_msdu *pframe, struct aicwf_rx_priv *rx_priv,
+ 						   &pframe->rxframe_list);
+ 			}
+ 		} else {
+-			//printk("%s pframe->seq_num2:%d \r\n", __func__, pframe->seq_num);
+ 			reord_single_frame_ind(rx_priv,
+ 					       pframe); //not need to reorder
+ 		}
+@@ -2072,12 +2104,18 @@ void remove_sec_hdr_mgmt_frame(struct hw_rxhdr *hw_rxhdr, struct sk_buff *skb)
+ 	u8 hdr_len = 24;
+ 	u8 mgmt_header[24] = { 0 };
+ 
++	if (!skb || skb->len < hdr_len)
++		return;
++
+ 	if (!hw_rxhdr->hwvect.ga_frame) {
+ 		if (((skb->data[0] & 0x0C) == 0) &&
+ 		    (skb->data[1] & 0x40) == 0x40) { //protect management frame
+ 			printk("frame type %x\n", skb->data[0]);
+ 			if (hw_rxhdr->hwvect.decr_status ==
+ 			    RWNX_RX_HD_DECR_CCMP128) {
++				if (skb->len < hdr_len + 8 ||
++				    hw_rxhdr->hwvect.len < hdr_len + 8)
++					return;
+ 				memcpy(mgmt_header, skb->data, hdr_len);
+ 				skb_pull(skb, 8);
+ 				memcpy(skb->data, mgmt_header, hdr_len);
+@@ -2107,16 +2145,19 @@ void rwnx_rxdata_process_amsdu(struct rwnx_hw *rwnx_hw, struct sk_buff *skb,
+ 		sub_skb = NULL;
+ 		while (skb->len > 16) {
+ 			sublen = (skb->data[12] << 8) | (skb->data[13]);
+-			if (skb->len > (sublen + 14))
++			if (sublen < 6 || skb->len < (sublen + 14)) {
++				printk("amsdu: invalid sublen %u (skb->len=%u)\n",
++				       sublen, skb->len);
++				break;
++			}
++			if (skb->len > (sublen + 14)) {
+ 				len_alligned = roundup(sublen + 14, 4);
+-			else if (skb->len == (sublen + 14))
++				if (len_alligned > skb->len)
++					len_alligned = skb->len;
++			} else {
+ 				len_alligned = sublen + 14;
+-			else {
+-				printk("accroding to amsdu: this will not happen\n");
+-				break;
+ 			}
+-			//printk("sublen = %d, %x, %x, %x, %x\r\n", sublen,skb->data[0], skb->data[1], skb->data[12], skb->data[13]);
+-#if 1
++
+ 			sub_skb = __dev_alloc_skb(sublen - 6 + 12, GFP_ATOMIC);
+ 			if (!sub_skb) {
+ 				printk("sub_skb alloc fail:%d\n", sublen);
+@@ -2132,21 +2173,14 @@ void rwnx_rxdata_process_amsdu(struct rwnx_hw *rwnx_hw, struct sk_buff *skb,
+ 			if (!rwnx_vif) {
+ 				printk("frame received but no active vif (%d), skb->len:%u\n",
+ 				       vif_idx, skb->len);
+-				//dev_kfree_skb(sub_skb);
++				dev_kfree_skb(sub_skb);
+ 				break;
+ 			}
+ 			__skb_queue_tail(list, sub_skb);
+ 
+-			//printk("a:%p\n", sub_skb);
+-			//if (!rwnx_rx_data_skb(rwnx_hw, rwnx_vif, sub_skb, hw_rxhdr))
+-			//    dev_kfree_skb(sub_skb);
+-#endif
+ 			skb_pull(skb, len_alligned);
+ 		}
+-		//printk("af:%p\n", skb);
+-		//printk("cnt=%d\n", cnt);
+ 		dev_kfree_skb(skb);
+-		//return 0;
+ 	}
+ }
+ 
+@@ -2203,6 +2237,11 @@ u8 rwnx_rxdataind_aicwf(struct rwnx_hw *rwnx_hw, void *hostid, void *rx_priv)
+ 	const struct ethhdr *eth;
+ 
+ 	REG_SW_SET_PROFILING(rwnx_hw, SW_PROF_RWNXDATAIND);
++	if (!skb || skb->len < sizeof(struct hw_rxhdr)) {
++		if (skb)
++			dev_kfree_skb(skb);
++		return 0;
++	}
+ 	hw_rxhdr = (struct hw_rxhdr *)skb->data;
+ 
+ #ifdef AICWF_RX_REORDER
+@@ -2343,6 +2382,10 @@ check_len_update:
+ 	if (status & RX_STAT_FORWARD) {
+ 		rwnx_rx_vector_convert(rwnx_hw, &hw_rxhdr->hwvect.rx_vect1,
+ 				       &hw_rxhdr->hwvect.rx_vect2);
++		if (skb->len < (unsigned int)(msdu_offset + 2 + 24)) {
++			dev_kfree_skb(skb);
++			goto end;
++		}
+ 		skb_pull(skb, msdu_offset + 2); //+2 since sdio allign 58->60
+ #define MAC_FCTRL_MOREFRAG 0x0400
+ 		frame_ctrl = (skb->data[1] << 8) | skb->data[0];
+@@ -2353,6 +2396,10 @@ check_len_update:
+ 		if ((skb->data[0] & 0x0f) == 0x08) {
+ 			if ((skb->data[0] & 0x80) == 0x80) { //qos data
+ 				hdr_len = 26;
++				if (skb->len < 26) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				tid = skb->data[24] & 0x0F;
+ 				is_qos = 1;
+ 				if (skb->data[24] & 0x80)
+@@ -2378,27 +2425,46 @@ check_len_update:
+ 			switch (hw_rxhdr->hwvect.decr_status) {
+ 			case RWNX_RX_HD_DECR_CCMP128:
+ 				pull_len += 8; //ccmp_header
+-				//skb_pull(&skb->data[skb->len-8], 8); //ccmp_mic_len
++				if (skb->len < pull_len) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				memcpy(ether_type, &skb->data[hdr_len + 6 + 8],
+ 				       2);
+ 				break;
+ 			case RWNX_RX_HD_DECR_TKIP:
+ 				pull_len += 8; //tkip_header
++				if (skb->len < pull_len) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				memcpy(ether_type, &skb->data[hdr_len + 6 + 8],
+ 				       2);
+ 				break;
+ 			case RWNX_RX_HD_DECR_WEP:
+ 				pull_len += 4; //wep_header
++				if (skb->len < pull_len) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				memcpy(ether_type, &skb->data[hdr_len + 6 + 4],
+ 				       2);
+ 				break;
+ 			case RWNX_RX_HD_DECR_WAPI:
+ 				pull_len += 18; //wapi_header
++				if (skb->len < pull_len) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				memcpy(ether_type, &skb->data[hdr_len + 6 + 18],
+ 				       2);
+ 				break;
+ 
+ 			default:
++				if (skb->len < pull_len) {
++					dev_kfree_skb(skb);
++					goto end;
++				}
+ 				memcpy(ether_type, &skb->data[hdr_len + 6], 2);
+ 				break;
+ 			}
+@@ -2419,6 +2485,7 @@ check_len_update:
+ 
+ 			if (!hw_rxhdr->flags_need_reord &&
+ 			    ((frame_ctrl & MAC_FCTRL_MOREFRAG) || frag_num)) {
++				unsigned int frag_payload_len;
+ 				printk("rxfrag:%d,%d,%d,sn=%d,%d\r\n",
+ 				       (frame_ctrl & MAC_FCTRL_MOREFRAG),
+ 				       frag_num, skb->len, seq_num, pull_len);
+@@ -2445,7 +2512,6 @@ check_len_update:
+ 						}
+ 					}
+ 
+-					//printk("rx frag: sn=%d, fn=%d, skb->len=%d\r\n", seq_num, frag_num, skb->len);
+ 					if (defrag_info) {
+ 						is_frag = 1;
+ 						if (defrag_info->next_fn !=
+@@ -2459,20 +2525,32 @@ check_len_update:
+ 								&rwnx_hw->defrag_lock);
+ 							return 0;
+ 						}
++						if (skb->len <= (unsigned int)(pull_len - 8)) {
++							dev_kfree_skb(skb);
++							spin_unlock_bh(
++								&rwnx_hw->defrag_lock);
++							return 0;
++						}
++						frag_payload_len = skb->len - (pull_len - 8);
++						if (frag_payload_len > skb_tailroom(defrag_info->skb)) {
++							printk("defrag overflow blocked: %u > %u\n",
++							       frag_payload_len,
++							       skb_tailroom(defrag_info->skb));
++							dev_kfree_skb(skb);
++							spin_unlock_bh(
++								&rwnx_hw->defrag_lock);
++							return 0;
++						}
+ 
+ 						skb_put(defrag_info->skb,
+-							skb->len -
+-								(pull_len - 8));
++							frag_payload_len);
+ 						memcpy(&defrag_info->skb->data
+ 								[defrag_info
+ 									 ->frm_len],
+ 						       &skb->data[pull_len - 8],
+-						       skb->len -
+-							       (pull_len - 8));
+-						//printk("middle:%d,%d\n", skb->len-(pull_len-8), skb->len);
++						       frag_payload_len);
+ 						defrag_info->frm_len +=
+-							(skb->len -
+-							 (pull_len - 8));
++							frag_payload_len;
+ 						defrag_info->next_fn++;
+ 						dev_kfree_skb(skb);
+ 						spin_unlock_bh(
+@@ -2481,7 +2559,7 @@ check_len_update:
+ 					} else {
+ 						defrag_info = kzalloc(
+ 							sizeof(struct defrag_ctrl_info),
+-							GFP_KERNEL);
++							GFP_ATOMIC);
+ 						if (defrag_info == NULL) {
+ 							printk("no defrag_ctrl_info\r\n");
+ 							dev_kfree_skb(skb);
+@@ -2492,7 +2570,7 @@ check_len_update:
+ 						defrag_info->skb =
+ 							__dev_alloc_skb(
+ 								2000,
+-								GFP_KERNEL);
++								GFP_ATOMIC);
+ 						if (defrag_info->skb == NULL) {
+ 							printk("no fragment skb\r\n");
+ 							dev_kfree_skb(skb);
+@@ -2504,6 +2582,14 @@ check_len_update:
+ 						is_frag = 1;
+ 						skb_pull(skb, pull_len);
+ 						skb_push(skb, 14);
++						if (skb->len > skb_tailroom(defrag_info->skb)) {
++							dev_kfree_skb(defrag_info->skb);
++							kfree(defrag_info);
++							dev_kfree_skb(skb);
++							spin_unlock_bh(
++								&rwnx_hw->defrag_lock);
++							return 0;
++						}
+ 						memcpy(skb->data, ra,
+ 						       MAC_ADDR_LEN);
+ 						memcpy(&skb->data[6], ta,
+@@ -2521,7 +2607,6 @@ check_len_update:
+ 						       skb->data, skb->len);
+ 						defrag_info->frm_len = skb->len;
+ 						defrag_info->rwnx_hw = rwnx_hw;
+-						//printk("first:%p,%p,%p,%p,%p, %d,%d\r\n", defrag_info, defrag_info->skb, defrag_info->skb->head, defrag_info->skb->tail, defrag_info->skb->end, defrag_info->frm_len, skb->len);
+ 						list_add_tail(
+ 							&defrag_info->list,
+ 							&rwnx_hw->defrag_list);
+@@ -2593,25 +2678,34 @@ check_len_update:
+ 									&rwnx_hw->defrag_lock);
+ 								return 0;
+ 							}
++							if (skb->len <= (unsigned int)(pull_len - 8)) {
++								dev_kfree_skb(skb);
++								spin_unlock_bh(
++									&rwnx_hw->defrag_lock);
++								return 0;
++							}
++							frag_payload_len = skb->len - (pull_len - 8);
++							if (frag_payload_len > skb_tailroom(defrag_info->skb)) {
++								printk("defrag last overflow blocked: %u > %u\n",
++								       frag_payload_len,
++								       skb_tailroom(defrag_info->skb));
++								dev_kfree_skb(skb);
++								spin_unlock_bh(
++									&rwnx_hw->defrag_lock);
++								return 0;
++							}
+ 
+ 							skb_put(defrag_info->skb,
+-								skb->len -
+-									(pull_len -
+-									 8));
++								frag_payload_len);
+ 							memcpy(&defrag_info->skb->data
+ 									[defrag_info
+ 										 ->frm_len],
+ 							       &skb->data[pull_len -
+ 									  8],
+-							       skb->len -
+-								       (pull_len -
+-									8));
++							       frag_payload_len);
+ 							defrag_info->frm_len +=
+-								(skb->len -
+-								 (pull_len -
+-								  8));
++								frag_payload_len;
+ 							is_frag = 1;
+-							//printk("last: sn=%d, fn=%d, %d, %d\r\n", seq_num, frag_num, defrag_info->frm_len, skb->len);
+ 
+ 							rwnx_vif = rwnx_rx_get_vif(
+ 								rwnx_hw,
+diff --git a/drivers/aic8800/aic8800/aic_load_fw/aicbluetooth.c b/drivers/aic8800/aic8800/aic_load_fw/aicbluetooth.c
+index 1deed45..a7a9009 100644
+--- a/drivers/aic8800/aic8800/aic_load_fw/aicbluetooth.c
++++ b/drivers/aic8800/aic8800/aic_load_fw/aicbluetooth.c
+@@ -169,10 +169,10 @@ static const char *aic_default_fw_path = "/lib/firmware";
+ static const char *aic_default_fw_path = "/lib/firmware";
+ #endif
+ char aic_fw_path[FW_PATH_MAX];
+-module_param_string(aic_fw_path, aic_fw_path, FW_PATH_MAX, 0660);
++module_param_string(aic_fw_path, aic_fw_path, FW_PATH_MAX, 0400);
+ #ifdef CONFIG_M2D_OTA_AUTO_SUPPORT
+ char saved_sdk_ver[64];
+-module_param_string(saved_sdk_ver, saved_sdk_ver, 64, 0660);
++module_param_string(saved_sdk_ver, saved_sdk_ver, 64, 0400);
+ #endif
+ 
+ int aic_bt_platform_init(struct aic_usb_dev *usbdev)
+@@ -1057,19 +1057,25 @@ void rwnx_plat_userconfig_parsing(char *buffer, int size)
+ 		//Fill data to command and value
+ 		if (parse_state == PRINT) {
+ 			command[0] = 0x01;
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == CMD) {
+ 			if (command[0] != 0 && buffer[i] == '=') {
+ 				parse_state = GET_VALUE;
+ 				char_counter = 0;
+ 				continue;
+ 			}
+-			command[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(command) - 1) {
++				command[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		} else if (parse_state == GET_VALUE) {
+-			value[char_counter] = buffer[i];
+-			char_counter++;
++			if (char_counter < (int)sizeof(value) - 1) {
++				value[char_counter] = buffer[i];
++				char_counter++;
++			}
+ 		}
+ 	}
+ }
+@@ -1138,7 +1144,7 @@ struct aicbt_patch_table *aicbt_patch_table_alloc(struct aic_usb_dev *usbdev,
+ 	/* Copy the file on the Embedded side */
+ 	printk("### Upload %s fw_patch_table, size=%d\n", filename, size);
+ 
+-	if (size <= 0) {
++	if (size < 16) {
+ 		printk("wrong size of firmware file\n");
+ 		ret = -1;
+ 		goto err;
+@@ -1155,9 +1161,16 @@ struct aicbt_patch_table *aicbt_patch_table_alloc(struct aic_usb_dev *usbdev,
+ 	p += 16;
+ 
+ 	while (p - rawdata < size) {
+-		//printk("size = %d  p - rawdata = %d \r\n", size, p - rawdata);
++		if (size - (p - rawdata) < 24) {
++			ret = -1;
++			goto err;
++		}
+ 		new = (struct aicbt_patch_table *)vmalloc(
+ 			sizeof(struct aicbt_patch_table));
++		if (!new) {
++			ret = -1;
++			goto err;
++		}
+ 		memset(new, 0, sizeof(struct aicbt_patch_table));
+ 		if (head == NULL) {
+ 			head = new;
+@@ -1181,8 +1194,16 @@ struct aicbt_patch_table *aicbt_patch_table_alloc(struct aic_usb_dev *usbdev,
+ 		if ((cur->type) >= 1000 || cur->len == 0) { //Temp Workaround
+ 			cur->len = 0;
+ 		} else {
++			if (cur->len > (uint32_t)(size - (p - rawdata)) / 8) {
++				ret = -1;
++				goto err;
++			}
+ 			cur->data = (uint32_t *)vmalloc(sizeof(uint8_t) *
+ 							cur->len * 8);
++			if (!cur->data) {
++				ret = -1;
++				goto err;
++			}
+ 			memset(cur->data, 0, sizeof(uint8_t) * cur->len * 8);
+ 			memcpy(cur->data, p, cur->len * 8);
+ 			p += cur->len * 8;
+@@ -1247,7 +1268,8 @@ int aicbt_patch_table_load(struct aic_usb_dev *usbdev,
+ 
+ 	for (p = head; p != NULL; p = p->next) {
+ 		data = p->data;
+-		if (AICBT_PT_BTMODE == p->type) {
++		if (AICBT_PT_BTMODE == p->type && p->len >= 9 && data &&
++		    usbdev->chipid < ARRAY_SIZE(aicbt_info)) {
+ 			*(data + 1) = aicbsp_info.hwinfo < 0;
+ 			*(data + 3) = aicbsp_info.hwinfo;
+ 			*(data + 5) = aicbsp_info.cpmode;
+@@ -1258,22 +1280,6 @@ int aicbt_patch_table_load(struct aic_usb_dev *usbdev,
+ 			*(data + 13) = aicbt_info[usbdev->chipid].uart_flowctrl;
+ 			*(data + 15) = aicbt_info[usbdev->chipid].lpm_enable;
+ 			*(data + 17) = aicbt_info[usbdev->chipid].txpwr_lvl;
+-
+-			printk("%s bt btmode[%d]:%d \r\n", __func__,
+-			       usbdev->chipid,
+-			       aicbt_info[usbdev->chipid].btmode);
+-			printk("%s bt uart_baud[%d]:%d \r\n", __func__,
+-			       usbdev->chipid,
+-			       aicbt_info[usbdev->chipid].uart_baud);
+-			printk("%s bt uart_flowctrl[%d]:%d \r\n", __func__,
+-			       usbdev->chipid,
+-			       aicbt_info[usbdev->chipid].uart_flowctrl);
+-			printk("%s bt lpm_enable[%d]:%d \r\n", __func__,
+-			       usbdev->chipid,
+-			       aicbt_info[usbdev->chipid].lpm_enable);
+-			printk("%s bt tx_pwr[%d]:%d \r\n", __func__,
+-			       usbdev->chipid,
+-			       aicbt_info[usbdev->chipid].txpwr_lvl);
+ 		}
+ 		if (p->type == 0x06) {
+ 			char *data_s = (char *)p->data;
+@@ -1371,7 +1377,7 @@ int rwnx_plat_bin_fw_patch_table_upload_android(struct aic_usb_dev *usbdev,
+ 	/* Copy the file on the Embedded side */
+ 	printk("### Upload %s fw_patch_table, size=%d\n", filename, size);
+ 
+-	if (size <= 0) {
++	if (size < 16) {
+ 		printk("wrong size of firmware file\n");
+ 		ret = -1;
+ 		goto err;
+@@ -1388,9 +1394,16 @@ int rwnx_plat_bin_fw_patch_table_upload_android(struct aic_usb_dev *usbdev,
+ 	p += 16;
+ 
+ 	while (p - rawdata < size) {
+-		//printk("size = %d  p - rawdata = %d \r\n", size, p - rawdata);
++		if (size - (p - rawdata) < 24) {
++			ret = -1;
++			goto err;
++		}
+ 		new = (struct aicbt_patch_table *)vmalloc(
+ 			sizeof(struct aicbt_patch_table));
++		if (!new) {
++			ret = -1;
++			goto err;
++		}
+ 		memset(new, 0, sizeof(struct aicbt_patch_table));
+ 		if (head == NULL) {
+ 			head = new;
+@@ -1414,8 +1427,16 @@ int rwnx_plat_bin_fw_patch_table_upload_android(struct aic_usb_dev *usbdev,
+ 		if ((cur->type) >= 1000 || cur->len == 0) { //Temp Workaround
+ 			cur->len = 0;
+ 		} else {
++			if (cur->len > (uint32_t)(size - (p - rawdata)) / 8) {
++				ret = -1;
++				goto err;
++			}
+ 			cur->data = (uint32_t *)vmalloc(sizeof(uint8_t) *
+ 							cur->len * 8);
++			if (!cur->data) {
++				ret = -1;
++				goto err;
++			}
+ 			memset(cur->data, 0, sizeof(uint8_t) * cur->len * 8);
+ 			memcpy(cur->data, p, cur->len * 8);
+ 			p += cur->len * 8;
+@@ -1428,7 +1449,7 @@ int rwnx_plat_bin_fw_patch_table_upload_android(struct aic_usb_dev *usbdev,
+ 
+ 	return ret;
+ err:
+-	//aicbt_patch_table_free(&head);
++	aicbt_patch_table_free(head);
+ 
+ 	if (rawdata) {
+ 		vfree(rawdata);
+-- 
+2.39.5
+
