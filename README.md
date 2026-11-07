@@ -1,154 +1,154 @@
 # Luckfox Lyra Hardened SDK
 
-[![Dépôt GitHub](https://img.shields.io/badge/GitHub-LuckFox__Lyra__SDK__updated__version-blue?logo=github)](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
-[![Licence GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-green.svg)](LICENSE)
-[![Amazon.ca](https://img.shields.io/badge/Amazon.ca-Acheter%20Luckfox%20Lyra-orange?logo=amazon)](https://link.amazon/B016bDnRF)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-LuckFox__Lyra__SDK__hardened__version-blue?logo=github)](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
+[![License GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-green.svg)](LICENSE)
+[![Amazon.ca](https://img.shields.io/badge/Amazon.ca-Buy%20Luckfox%20Lyra-orange?logo=amazon)](https://link.amazon/B016bDnRF)
 
-Ce projet fournit une version stabilisée, durcie et fiabilisée du SDK officiel pour la plateforme **Luckfox Lyra (Rockchip RK3506 / RK3506B)**, spécifiquement optimisée pour les déploiements embarqués critiques (vision nocturne, caméras UVC, passerelles domotiques et capteurs industriels).
+This project provides a stabilized, hardened, and reliable SDK for the **Luckfox Lyra (Rockchip RK3506 / RK3506B)** embedded platform, specifically optimized for mission-critical deployments (night-vision systems, UVC cameras, home automation gateways, and industrial edge sensors).
 
 ---
 
-## 🛒 Matériel Supporté & Liens d'Achat
+## 🛒 Supported Hardware & Purchase Links
 
-Retrouvez et soutenez le projet en vous procurant la carte officielle et ses accessoires via nos liens partenaires :
+Support the project and obtain the official single-board computer and compatible accessories via our partner links:
 
 <p align="center">
   <a href="https://link.amazon/B016bDnRF">
     <img src="https://m.media-amazon.com/images/I/61f7o0iEaKL._AC_SL1200_.jpg" width="400" alt="Luckfox Lyra W SBC" />
   </a>
   <br />
-  <em>👉 <a href="https://link.amazon/B016bDnRF"><strong>Commander la carte Luckfox Lyra W sur Amazon.ca</strong></a></em>
+  <em>👉 <a href="https://link.amazon/B016bDnRF"><strong>Order Luckfox Lyra W on Amazon.ca</strong></a></em>
 </p>
 
-- 🔗 **Lien direct Amazon.ca (Carte Luckfox Lyra W) :** [Acheter le Luckfox Lyra W](https://link.amazon/B016bDnRF)
-- 🔍 **Tous les produits et accessoires Luckfox sur Amazon :** [Parcourir la gamme Luckfox sur Amazon](https://link.amazon/B00vZoO0E)
-- 📂 **Dépôt officiel du projet :** [https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
+- 🔗 **Direct Amazon.ca Purchase Link (Luckfox Lyra W Board):** [Buy Luckfox Lyra W](https://link.amazon/B016bDnRF)
+- 🔍 **All Luckfox Products and Compatible Hardware on Amazon:** [Browse Luckfox Lineup on Amazon](https://link.amazon/B00vZoO0E)
+- 📂 **Official Project Repository:** [https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version](https://github.com/lotus-z-dev/LuckFox_Lyra_SDK_hardened_version)
 
 ---
 
-## 1. Pourquoi ce nouveau SDK ?
+## 1. Why This Hardened SDK?
 
-Le SDK officiel fourni pour les cartes Luckfox Lyra présente plusieurs limitations techniques, régressions de stabilité et choix de configuration qui compliquent son exploitation en environnement autonome ou continu.
+The stock vendor SDK provided for Luckfox Lyra boards exhibits several technical limitations, stability regressions, and legacy configuration choices that hinder continuous, unattended operation in production environments.
 
-### Problèmes identifiés dans le SDK d'origine :
-1. **Instabilité des pilotes Wi-Fi / Bluetooth (AIC8800) :**
-   - Plantages intermittents et fuites de ressources lors de déconnexions/reconnexions réseau fréquentes.
-   - Gestion défaillante de la mémoire dans les couches de transport USB et les commandes propriétaires du pilote.
-   - Manque de robustesse lors de la réception de paquets malformés ou de messages asynchrones.
+### Key Issues in the Stock SDK:
+1. **Instability in Wi-Fi / Bluetooth Drivers (AIC8800):**
+   - Intermittent kernel panics and resource leaks during frequent network disconnect/reconnect cycles.
+   - Faulty memory boundary management within USB transport layers and vendor private ioctl commands.
+   - Fragility when handling malformed packets or asynchronous RX messaging.
 
-2. **Défauts de robustesse dans le sous-système de stockage constructeur (Vendor Storage) :**
-   - Risque de corruption de mémoire lors d'appels répétés sur les partitions MTD, Flash et SDMMC.
-   - Absence de validation stricte des bornes d'index et des tailles de tampons mémoire lors des transferts de blocs.
+2. **Robustness Defects in Vendor Storage Subsystems:**
+   - Memory corruption risks during repetitive read/write operations on MTD, Flash, and SDMMC vendor partitions.
+   - Missing strict boundary and buffer length validations during block transfers.
 
-3. **Incohérences de synchronisation inter-cœurs (RPMSG / AMP) :**
-   - Vulnérabilités de type course critique (*race conditions*) lors de transferts intensifs entre le processeur principal et le cœur temps réel.
-   - Risques de déréférencement de pointeurs nuls ou d'écrasement de données partagées en cas de défaillance transitoire.
+3. **Inter-Core Synchronization Inconsistencies (RPMSG / AMP):**
+   - Critical race conditions during intensive bidirectional communication between the application processor and the real-time core.
+   - Potential NULL pointer dereferences and shared-memory state corruptions under transient faults.
 
-4. **Surface d'exposition excessive du noyau Linux :**
-   - Modules de test de débogage et fonctions de diagnostics laissés actifs en production, augmentant inutilement l'empreinte mémoire et les points d'entrée instables.
-   - Traitement non sécurisé des opérations graphiques et des calculs géométriques (moteur 2D RGA).
-
----
-
-## 2. Améliorations et Correctifs Apportés
-
-Notre SDK apporte une refonte complète de ces composants critiques sans briser la compatibilité avec l'écosystème Luckfox :
-
-- **Durcissement et assainissement des pilotes réseau (`aic8800`) :**
-  - Validation exhaustive de la taille de chaque trame reçue et transmise.
-  - Élimination des débordements de tampons et vérification systématique des codes de retour de l'allocation mémoire.
-  - Sécurisation du mécanisme de chargement du microprogramme (*firmware*).
-
-- **Fiabilisation du stockage Flash / MTD :**
-  - Contrôle strict des bornes sur toutes les opérations d'accès au stockage constructeur.
-  - Prévention des corruptions mémoire silencieuses lors des sauvegardes de variables d'environnement.
-
-- **Stabilisation du canal IPC RPMSG :**
-  - Verrouillage synchronisé des accès concurrents pour éliminer les blocages du bus inter-cœurs.
-  - Nettoyage des buffers et libération garantie des ressources en cas d'erreur de communication.
-
-- **Optimisation de la configuration noyau (`rk3506_luckfox_defconfig`) :**
-  - Réduction de la surface d'attaque par désactivation des modules de test obsolètes.
-  - Renforcement des mécanismes de protection mémoire du noyau Linux 6.1 LTS.
+4. **Excessive Kernel Attack Surface:**
+   - Obsolete debug test modules and diagnostic hooks left enabled in production configurations, consuming unnecessary memory and exposing fragile entry points.
+   - Unchecked geometric calculations and scaling boundary handling in 2D hardware accelerators.
 
 ---
 
-## 3. Prérequis et Environnement de Compilation
+## 2. Hardening and Improvements
 
-### Dépendances de l'hôte (Debian / Ubuntu / Crostini) :
+This SDK provides a comprehensive overhaul of these critical components while maintaining 100% full compatibility with the Luckfox software ecosystem:
+
+- **Wi-Fi / Bluetooth Driver Hardening (`aic8800`):**
+  - Exhaustive length and sanity checks on every incoming and outgoing network frame.
+  - Complete elimination of buffer overruns and rigorous verification of memory allocation return codes.
+  - Hardened Bluetooth firmware loading routine.
+
+- **Resilient Flash / MTD Vendor Storage:**
+  - Strict boundary controls on all vendor partition operations.
+  - Prevention of silent memory corruption during environment variable persistence.
+
+- **RPMSG IPC Channel Stabilization:**
+  - Synchronized locking on concurrent access paths, eliminating bus deadlocks between asymmetric cores.
+  - Guaranteed resource cleanup and buffer reclamation on communication aborts.
+
+- **Optimized Kernel Configuration (`rk3506_luckfox_defconfig`):**
+  - Reduced attack surface via removal of obsolete test modules.
+  - Enforced Linux 6.1 LTS kernel memory protections and hardening flags.
+
+---
+
+## 3. Prerequisites & Build Environment
+
+### Host Dependencies (Debian / Ubuntu / Crostini):
 ```bash
 sudo apt-get update
 sudo apt-get install -y git build-essential gcc g++ make cmake python3 bc \
     bison flex libssl-dev libncurses5-dev u-boot-tools libusb-1.0-0-dev device-tree-compiler
 ```
 
-### Chaîne de compilation croisée :
-Le SDK utilise la chaîne de compilation croisée ARM officielle intégrée dans le répertoire `tools/linux/toolchain/arm-rockchip830-linux-uclibcgnueabihf/`.
+### Cross-Compilation Toolchain:
+The SDK relies on the official ARM cross-compiler toolchain integrated under `tools/linux/toolchain/arm-rockchip830-linux-uclibcgnueabihf/`.
 
 ---
 
-## 4. Instructions de Compilation
+## 4. Building from Source
 
-### A. Initialisation de la cible
-Exécutez le script interactif de sélection de cible matérielle :
+### A. Target Initialization
+Run the interactive hardware target selection menu:
 ```bash
 ./build.sh lunch
 ```
-Choisissez la configuration correspondant à votre modèle (ex. : `Luckfox Lyra Zero W - SPI NAND`).
+Select the configuration corresponding to your board (e.g., `Luckfox Lyra Zero W - SPI NAND`).
 
-### B. Compilation complète de l'image
-Pour générer l'ensemble des composants (SPL, U-Boot, Noyau Linux 6.1, Rootfs) :
+### B. Complete System Build
+To generate all system components (SPL, U-Boot, Linux 6.1 Kernel, Rootfs):
 ```bash
 ./build.sh
 ```
 
-### C. Compilation ciblée du noyau uniquement
-Pour tester et compiler uniquement le noyau modifié :
+### C. Building the Kernel Only
+To quickly compile and test the hardened kernel:
 ```bash
 ./build.sh kernel
 ```
 
-Les images générées prêtes au flashage sont situées dans le sous-répertoire `output/image/`.
+Generated flashable firmware images are placed in `output/image/`.
 
 ---
 
-## 5. Flashage sur la carte Luckfox
+## 5. Applying Hardened Patches to an Existing SDK
 
-Connectez la carte Luckfox en mode Maskrom/Download via USB-C, puis utilisez l'outil de flashage officiel :
-```bash
-sudo ./tools/linux/Linux_Upgrade_Tool/Linux_Upgrade_Tool/upgrade_tool uf output/image/update.img
-```
-
-*(Besoin d'une carte supplémentaire pour vos tests ? [Achetez le Luckfox Lyra W sur Amazon.ca](https://link.amazon/B016bDnRF) ou explorez les [accessoires compatibles](https://link.amazon/B00vZoO0E).)*
-
----
-
-## 6. Crédits & Licence
-
-- **Projet et Maintenance :** [lotus-z-dev](https://github.com/lotus-z-dev)
-- **Noyau Linux 6.1 :** Linus Torvalds, contributeurs Linux & Rockchip Electronics Co., Ltd.
-- **Pilotes Wi-Fi/BT :** AICSemi Inc. & Rockchip Electronics Co., Ltd.
-- **Outils & Build System :** Luckfox / Waveshare & Rockchip Electronics Co., Ltd.
-
-Tous les détails de licences et mentions légales sont décrits dans le fichier [LICENSE](LICENSE).
-
----
-
-## 7. Bonnes Pratiques & Contribution
-
-- Ne committez **jamais** de secrets, jetons d'accès ou clés privées dans ce dépôt.
-- Toute modification apportée au noyau doit compiler sans avertissement avec `-Werror`.
-
----
-
-## 🛠️ Utilisation des Patches Durcis (Hardened Patches)
-
-Si vous disposez déjà d'une arborescence SDK Luckfox officielle, vous pouvez appliquer l'ensemble de nos correctifs de sécurité et de robustesse en une seule commande grâce au script fourni :
+If you already maintain an existing official Luckfox SDK tree, you can apply all hardening patches with a single command using the provided script:
 
 ```bash
 ./apply-hardened-patches.sh
 ```
 
-Ce script applique automatiquement :
-- `patches/0001-kernel-6.1-security-hardening-storage-amp-rpmsg-rga.patch` : Sécurisation du stockage constructeur (Flash/MTD/SDMMC), assainissement de la communication RPMSG, et renforcement de la configuration mémoire noyau.
-- `patches/0002-rkwifibt-aic8800-driver-robustness-and-usb-sanitization.patch` : Validation stricte des tampons de réception USB et des requêtes privées du pilote AIC8800.
+This applies:
+- `patches/0001-kernel-6.1-security-hardening-storage-amp-rpmsg-rga.patch`: Hardened vendor storage, verified RPMSG IPC, and locked-down kernel defconfig.
+- `patches/0002-rkwifibt-aic8800-driver-robustness-and-usb-sanitization.patch`: Sanitized USB RX buffers, boundary-checked private ioctls, and hardened AIC8800 Wi-Fi/BT drivers.
+
+---
+
+## 6. Flashing the Board
+
+Connect the Luckfox board in Maskrom/Download mode via USB-C, then invoke the upgrade utility:
+```bash
+sudo ./tools/linux/Linux_Upgrade_Tool/Linux_Upgrade_Tool/upgrade_tool uf output/image/update.img
+```
+
+*(Need an additional board for test automation? [Order Luckfox Lyra W on Amazon.ca](https://link.amazon/B016bDnRF) or explore [compatible accessories](https://link.amazon/B00vZoO0E).)*
+
+---
+
+## 7. Credits & License
+
+- **Project Maintenance:** [lotus-z-dev](https://github.com/lotus-z-dev)
+- **Linux Kernel 6.1:** Linus Torvalds, Linux community contributors & Rockchip Electronics Co., Ltd.
+- **Wi-Fi / BT Drivers:** AICSemi Inc. & Rockchip Electronics Co., Ltd.
+- **Build System & Tooling:** Luckfox / Waveshare & Rockchip Electronics Co., Ltd.
+
+Full licensing details and legal disclaimers are documented in [LICENSE](LICENSE).
+
+---
+
+## 8. Security & Contributions
+
+- Never commit secrets, authentication tokens, private keys, or passwords.
+- All kernel and driver modifications must compile cleanly with `-Werror`.

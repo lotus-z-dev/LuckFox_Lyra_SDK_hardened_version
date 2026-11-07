@@ -1,40 +1,40 @@
-# Mentions Légales et Licences / Legal Notices & Licenses
+# Legal Notices & Licenses
 
-Le présent projet « Luckfox Lyra Hardened SDK » regroupe des composants logiciels issus de l'écosystème open-source, soumis à différentes licences libres, ainsi que des contributions et correctifs de durcissement.
-
----
-
-## 1. Noyau Linux (Linux Kernel 6.1 LTS)
-* **Licence :** GNU General Public License version 2 (GPL-2.0)
-* **Auteurs d'origine :** Linus Torvalds et les nombreux contributeurs du noyau Linux (voir `COPYING` et les en-têtes de fichiers individuels).
-* **Adaptations Rockchip :** Rockchip Electronics Co., Ltd.
-* **Durcissement et correctifs :** Équipe de maintenance du projet (correctifs de robustesse, sécurisation MTD/Vendor Storage, assainissement RPMSG).
-* Une copie complète de la licence GPL-2.0 est accessible dans le répertoire `kernel-6.1/COPYING`.
+The "Luckfox Lyra Hardened SDK" project aggregates open-source software components governed by various open-source licenses, alongside defensive hardening contributions and robustness patches.
 
 ---
 
-## 2. Pilote Wi-Fi / Bluetooth AIC8800 (`external/rkwifibt/drivers/aic8800`)
-* **Licence :** GNU General Public License version 2 (GPL-2.0)
-* **Auteurs d'origine :** AICSemi (AICSemi Inc.) & Rockchip Electronics Co., Ltd.
-* **Assainissement et fiabilisation :**
-  - Validation stricte des longueurs de trames USB (`aicwf_usb.c`).
-  - Vérification systématique des tampons réseau et des limites de paquets (`rwnx_rx.c`, `aicwf_txrxif.c`).
-  - Protection contre les dépassements d'entiers dans les commandes propriétaires (`aic_priv_cmd.c`).
-  - Sécurisation du chargeur de microprogramme Bluetooth (`aicbluetooth.c`).
+## 1. Linux Kernel (Linux Kernel 6.1 LTS)
+* **License:** GNU General Public License version 2 (GPL-2.0)
+* **Original Authors:** Linus Torvalds and the Linux kernel contributors (see `COPYING` and individual file headers).
+* **Rockchip Adaptations:** Rockchip Electronics Co., Ltd.
+* **Hardening and Fixes:** Project maintenance team (robustness fixes, MTD/Vendor Storage boundary validation, RPMSG channel sanitization).
+* A complete copy of the GPL-2.0 license is available in the `kernel-6.1/COPYING` directory.
 
 ---
 
-## 3. Chargeur d'amorçage U-Boot (`u-boot/`)
-* **Licence :** GNU General Public License version 2 (GPL-2.0-or-later)
-* **Auteurs :** Wolfgang Denk et les contributeurs du projet U-Boot, ainsi que Rockchip Electronics Co., Ltd.
+## 2. AIC8800 Wi-Fi / Bluetooth Driver (`external/rkwifibt/drivers/aic8800`)
+* **License:** GNU General Public License version 2 (GPL-2.0)
+* **Original Authors:** AICSemi (AICSemi Inc.) & Rockchip Electronics Co., Ltd.
+* **Sanitization and Robustness:**
+  - Strict validation of incoming/outgoing USB packet lengths (`aicwf_usb.c`).
+  - Boundary checking on network buffers and frame limits (`rwnx_rx.c`, `aicwf_txrxif.c`).
+  - Protection against integer overflows and boundary violations in vendor private ioctl commands (`aic_priv_cmd.c`).
+  - Hardened Bluetooth firmware loading routine (`aicbluetooth.c`).
 
 ---
 
-## 4. Outils et Scripts de Construction (`sysdrv/`, `tools/`, `build.sh`)
-* **Licence :** Licences respectives des composants (GPL-2.0, LGPL, BSD ou Apache selon les outils d'origine).
-* **Auteurs :** Luckfox / Waveshare, Rockchip Electronics Co., Ltd.
+## 3. U-Boot Bootloader (`u-boot/`)
+* **License:** GNU General Public License version 2 (GPL-2.0-or-later)
+* **Authors:** Wolfgang Denk and U-Boot project contributors, as well as Rockchip Electronics Co., Ltd.
 
 ---
 
-## Avertissement de Non-Responsabilité (Disclaimer)
-LE LOGICIEL EST FOURNI « TEL QUEL », SANS GARANTIE D'AUCUNE SORTE, EXPRESSE OU IMPLICITE, Y COMPRIS MAIS SANS S'Y LIMITER, LES GARANTIES DE QUALITÉ MARCHANDE, D'ADÉQUATION À UN USAGE PARTICULIER ET D'ABSENCE DE CONTREFAÇON. EN AUCUN CAS LES AUTEURS OU TITULAIRES DU DROIT D'AUTEUR NE SERONT RESPONSABLES DE TOUT DOMMAGE RÉSULTANT DE L'UTILISATION DU PRÉSENT LOGICIEL.
+## 4. Build System & Tooling (`sysdrv/`, `tools/`, `build.sh`)
+* **License:** Respective component licenses (GPL-2.0, LGPL, BSD, or Apache depending on the upstream tool).
+* **Authors:** Luckfox / Waveshare, Rockchip Electronics Co., Ltd.
+
+---
+
+## Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
