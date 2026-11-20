@@ -1,0 +1,52 @@
+# Secrets, private keys, tokens, and credential files
+*.pem
+*.key
+*.token
+*.env
+*.secret
+*credentials*
+*passwd*
+*shadow*
+
+# Build outputs and compiler artifacts
+output/
+*.o
+*.o.cmd
+*.ko
+*.mod.c
+*.mod
+*.a
+*.so
+modules.order
+Module.symvers
+.built-in.a.cmd
+.tmp_versions/
+
+# Editor, IDE, and OS metadata
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Archives and repo metadata
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tgz
+*.sha256
+.repo/
+
+# Large compiled kernel and firmware images
+vmlinux
+vmlinux.o
+*.dtb
+*.dtbo
+zImage
+uImage
+boot.img
+rootfs.img
+update.img
+
+# Large third-party debug archives
+tools/linux/PinDebug/pin_debug_tool_v1.11_for_linux.tar

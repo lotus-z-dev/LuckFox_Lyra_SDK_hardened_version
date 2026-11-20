@@ -1,0 +1,27 @@
+diff --git a/usbdevice b/usbdevice
+index ca4b6c4..398cc8e 100755
+--- a/usbdevice
++++ b/usbdevice
+@@ -219,8 +219,9 @@ usb_stop_daemon()
+ 
+ usb_load_config()
+ {
+-	USB_CONFIG_FILE=$(find /tmp/ /etc/ -name .usb_config | head -n 1)
+-	[ -n "$USB_CONFIG_FILE" -a -r "$USB_CONFIG_FILE" ] || return 0
++	# Security: never read USB gadget config from world-writable /tmp
++	USB_CONFIG_FILE="/etc/.usb_config"
++	[ -f "$USB_CONFIG_FILE" -a -r "$USB_CONFIG_FILE" ] || return 0
+ 
+ 	echo "Loading configs from $USB_CONFIG_FILE ..."
+ 
+@@ -242,6 +243,10 @@ ADB_INSTANCES=${ADB_INSTANCES:-ffs.adb}
+ 
+ adb_prepare()
+ {
++	if [ ! -x /usr/bin/adbd ]; then
++		echo "adbd binary not installed; skipping adb gadget" >&2
++		return 1
++	fi
+ 	usb_mount adb /dev/usb-ffs/adb -o uid=2000,gid=2000 -t functionfs
+ 	/sbin/ifup --force lo 2>/dev/null || /sbin/ifup -f lo 2>/dev/null
+ 	usb_start_daemon /usr/bin/adbd

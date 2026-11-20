@@ -1,0 +1,306 @@
+diff --git a/common/configs/post/Config.in.usb-gadget b/common/configs/post/Config.in.usb-gadget
+index 79f288e..2071dde 100644
+--- a/common/configs/post/Config.in.usb-gadget
++++ b/common/configs/post/Config.in.usb-gadget
+@@ -28,7 +28,7 @@ config RK_USB_PRODUCT
+ 
+ menuconfig RK_USB_ADBD
+ 	bool "Android Debug Bridge Daemon (adbd)"
+-	default y
++	default n
+ 
+ if RK_USB_ADBD
+ 
+diff --git a/common/overlays/rootfs/luckfox-lyra/S45usbconfig b/common/overlays/rootfs/luckfox-lyra/S45usbconfig
+index e33c4fb..ed277b2 100755
+--- a/common/overlays/rootfs/luckfox-lyra/S45usbconfig
++++ b/common/overlays/rootfs/luckfox-lyra/S45usbconfig
+@@ -2,11 +2,14 @@
+ 
+ case "$1" in
+ 	start)
+-		if [ ! -f /etc/.usb_config ]; then
+-			echo "usb_rndis_en" >> /etc/.usb_config
+-			echo "usb_adb_en" >> /etc/.usb_config
++		# Security: ADB daemon is permanently disabled (RK_USB_ADBD=n).
++		# Avoid failing on read-only root filesystems when /etc is not writable.
++		if [ ! -f /etc/.usb_config ] && [ -w /etc ]; then
++			printf 'usb_rndis_en\n' > /etc/.usb_config
+ 		fi
+ 		;;
++	stop|restart)
++		;;
+ 	*)
+ 		echo "Usage: [start|stop|restart]" >&2
+ 		exit 3
+diff --git a/common/overlays/rootfs/luckfox-lyra/S60netdevice b/common/overlays/rootfs/luckfox-lyra/S60netdevice
+index f7b5872..f435ef4 100755
+--- a/common/overlays/rootfs/luckfox-lyra/S60netdevice
++++ b/common/overlays/rootfs/luckfox-lyra/S60netdevice
+@@ -4,97 +4,54 @@ ETH0_MAC_FILE="/etc/.eth0_macaddr"
+ ETH1_MAC_FILE="/etc/.eth1_macaddr"
+ USB_MAC_FILE="/etc/.usb_macaddr"
+ 
+-start() {
+-	if ifconfig -a | grep -q 'eth0'; then
+-		ifconfig eth0 up
+-
+-		ETH0_CURRENT_MAC=$(cat /sys/class/net/eth0/address)
+-
+-		if [ -f "$ETH0_MAC_FILE" ]; then
+-			ETH0_SAVED_MAC=$(cat "$ETH0_MAC_FILE")
+-			if [ -z "$ETH0_SAVED_MAC" ];then
+-				rm $ETH0_MAC_FILE
+-				echo "$ETH0_CURRENT_MAC" > "$ETH0_MAC_FILE"
+-				echo "[S60netdevice] Saved current MAC address ($ETH0_CURRENT_MAC) to $ETH0_MAC_FILE"
+-			else
+-				echo "[S60netdevice] Saved eth0 Mac address:$ETH0_SAVED_MAC"
+-				ifconfig eth0 down
+-				ifconfig eth0 hw ether "$ETH0_SAVED_MAC"
+-				ifconfig eth0 up
+-				echo "[S60netdevice] Set eth0 MAC address to $ETH0_SAVED_MAC"
+-			fi
+-		else
+-			echo "$ETH0_CURRENT_MAC" > "$ETH0_MAC_FILE"
+-			echo "[S60netdevice] Saved current MAC address ($ETH0_CURRENT_MAC) to $ETH0_MAC_FILE"
++persist_or_apply_mac() {
++	iface="$1"
++	mac_file="$2"
++	current_mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
++	[ -n "$current_mac" ] || return 0
++
++	if [ -f "$mac_file" ]; then
++		saved_mac=$(cat "$mac_file" 2>/dev/null)
++		if [ -n "$saved_mac" ]; then
++			ifconfig "$iface" down
++			ifconfig "$iface" hw ether "$saved_mac"
++			ifconfig "$iface" up
++		elif [ -w /etc ]; then
++			rm -f "$mac_file"
++			printf '%s\n' "$current_mac" > "$mac_file"
+ 		fi
++	elif [ -w /etc ]; then
++		printf '%s\n' "$current_mac" > "$mac_file"
++	fi
++}
+ 
+-		udhcpc -i eth0 > /tmp/eth0_udhcpc.log 2>&1 &
+-	else
+-		echo "[S60netdevice] eth0 not found"
++start() {
++	if [ -d /sys/class/net/eth0 ]; then
++		ifconfig eth0 up
++		persist_or_apply_mac eth0 "$ETH0_MAC_FILE"
++		udhcpc -i eth0 -S >/dev/null 2>&1 &
+ 	fi
+ 
+-	if ifconfig -a | grep -q 'eth1'; then
++	if [ -d /sys/class/net/eth1 ]; then
+ 		ifconfig eth1 up
+-
+-		ETH1_CURRENT_MAC=$(cat /sys/class/net/eth1/address)
+-
+-		if [ -f "$ETH1_MAC_FILE" ]; then
+-			ETH1_SAVED_MAC=$(cat "$ETH1_MAC_FILE")
+-			if [ -z "$ETH1_SAVED_MAC" ];then
+-				rm $ETH1_MAC_FILE
+-				echo "$ETH1_CURRENT_MAC" > "$ETH1_MAC_FILE"
+-				echo "[S60netdevice] Saved current MAC address ($ETH1_CURRENT_MAC) to $ETH1_MAC_FILE"
+-			else
+-				echo "[S60netdevice] Saved eth1 Mac address:$ETH1_SAVED_MAC"
+-				ifconfig eth1 down
+-				ifconfig eth1 hw ether "$ETH1_SAVED_MAC"
+-				ifconfig eth1 up
+-				echo "[S60netdevice] Set eth1 MAC address to $ETH1_SAVED_MAC"
+-			fi
+-		else
+-			echo "$ETH1_CURRENT_MAC" > "$ETH1_MAC_FILE"
+-			echo "[S60netdevice] Saved current MAC address ($ETH1_CURRENT_MAC) to $ETH1_MAC_FILE"
+-		fi
+-
+-		udhcpc -i eth1 > /tmp/eth1_udhcpc.log 2>&1 &
+-	else
+-		echo "[S60netdevice] eth1 not found"
++		persist_or_apply_mac eth1 "$ETH1_MAC_FILE"
++		udhcpc -i eth1 -S >/dev/null 2>&1 &
+ 	fi
+ 
+-	sleep 8
+-
++	# Fast boot optimization: removed blocking 8s sleep; check gadget net safely
++	usb_iface_name=""
+ 	if [ -d "/sys/devices/platform/ff740000.usb/gadget.0/net" ]; then
+-		for iface in "/sys/devices/platform/ff740000.usb/gadget.0/net"/*; do
++		for iface in /sys/devices/platform/ff740000.usb/gadget.0/net/*; do
++			[ -e "$iface" ] || continue
+ 			usb_iface_name=$(basename "$iface")
++			break
+ 		done
+ 	fi
+ 
+-	if ifconfig -a | grep -q $usb_iface_name; then
+-		ifconfig $usb_iface_name up
+-
+-		USB_CURRENT_MAC=$(cat /sys/class/net/$usb_iface_name/address)
+-
+-		if [ -f "$USB_MAC_FILE" ]; then
+-			USB_SAVED_MAC=$(cat "$USB_MAC_FILE")
+-			if [ -z "$USB_SAVED_MAC" ];then
+-				rm $USB_MAC_FILE
+-				echo "$USB_CURRENT_MAC" > "$USB_MAC_FILE"
+-				echo "[S60netdevice] Saved current MAC address ($USB_CURRENT_MAC) to $USB_MAC_FILE"
+-			else
+-				echo "[S60netdevice] Saved usb Mac address:$USB_SAVED_MAC"
+-				ifconfig $usb_iface_name down
+-				ifconfig $usb_iface_name hw ether "$USB_SAVED_MAC"
+-				ifconfig $usb_iface_name up
+-				echo "[S60netdevice] Set usb MAC address to $USB_SAVED_MAC"
+-			fi
+-		else
+-			echo "$USB_CURRENT_MAC" > "$USB_MAC_FILE"
+-			echo "[S60netdevice] Saved current MAC address ($USB_CURRENT_MAC) to $USB_MAC_FILE"
+-		fi
+-
+-		ifconfig $usb_iface_name 192.168.123.100
+-	else
+-		echo "[S60netdevice] USB interface not found"
++	if [ -n "$usb_iface_name" ] && [ -d "/sys/class/net/$usb_iface_name" ]; then
++		ifconfig "$usb_iface_name" up
++		persist_or_apply_mac "$usb_iface_name" "$USB_MAC_FILE"
++		ifconfig "$usb_iface_name" 192.168.123.100
+ 	fi
+ }
+ 
+@@ -102,6 +59,8 @@ case "$1" in
+ 	start)
+ 		start &
+ 		;;
++	stop|restart)
++		;;
+ 	*)
+ 		exit 1
+ 		;;
+diff --git a/common/overlays/rootfs/luckfox-lyra/etc/inittab b/common/overlays/rootfs/luckfox-lyra/etc/inittab
+index c0976be..5500895 100755
+--- a/common/overlays/rootfs/luckfox-lyra/etc/inittab
++++ b/common/overlays/rootfs/luckfox-lyra/etc/inittab
+@@ -15,7 +15,7 @@
+ 
+ # Startup the system
+ ::sysinit:/bin/mount -t sysfs sysfs /sys
+-::sysinit:/bin/mount -o remount,rw /
++# Security: keep root filesystem mounted read-only (no remount,rw /)
+ ::sysinit:/etc/init.d/rcS.early
+ ::sysinit:/bin/mkdir -p /dev/pts /dev/shm
+ ::sysinit:/bin/mount -t tmpfs tmpfs /var/log
+@@ -31,10 +31,9 @@ null::sysinit:/bin/ln -sf /proc/self/fd/2 /dev/stderr
+ # now run any rc scripts
+ ::sysinit:/etc/init.d/rcS
+ 
+-# Put a getty on the serial port
+-#::respawn:-/bin/sh # ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100 # GENERIC_SERIAL
+-console::respawn:/sbin/getty -L  console 0 vt100 # GENERIC_SERIAL
+-tty1::respawn:/sbin/getty 115200 tty1
++# Security: interactive serial and TTY login shells disabled on hardened images
++# console::respawn:/sbin/getty -L console 0 vt100 # GENERIC_SERIAL
++# tty1::respawn:/sbin/getty 115200 tty1
+ 
+ # Stuff to do for the 3-finger salute
+ #::ctrlaltdel:/sbin/reboot
+diff --git a/common/scripts/build.sh b/common/scripts/build.sh
+index c28d9a9..d27d2f7 100755
+--- a/common/scripts/build.sh
++++ b/common/scripts/build.sh
+@@ -434,19 +434,19 @@ parse_scripts()
+ 		[ "$(find "$RK_SCRIPTS_DIR" "$RK_CHIP_DIR" "$RK_CHIP_DIR/" \
+ 			-cnewer "$RK_MAKE_USAGE")" ]; then
+ 		{
+-			TEMP_FILE=$(mktemp -u)
++			TEMP_FILE=$(mktemp "$RK_OUTDIR/.make_usage.XXXXXX")
+ 
+ 			for c in $(ls "$RK_CHIPS_DIR"); do
+ 				usage_makefile_oneline "$c" "choose $c"
+-			done > $TEMP_FILE
++			done > "$TEMP_FILE"
+ 
+-			run_build_hooks make-usage >> $TEMP_FILE
++			run_build_hooks make-usage >> "$TEMP_FILE"
+ 
+ 			usage_clean | \
+ 				while read LINE; do
+ 					usage_makefile_oneline $LINE
+-				done >> $TEMP_FILE
+-			mv $TEMP_FILE "$RK_MAKE_USAGE"
++				done >> "$TEMP_FILE"
++			mv "$TEMP_FILE" "$RK_MAKE_USAGE"
+ 		}&
+ 	fi
+ 
+@@ -454,12 +454,12 @@ parse_scripts()
+ 		[ "$(find "$RK_SCRIPTS_DIR" "$RK_CHIP_DIR" "$RK_CHIP_DIR/" \
+ 			-cnewer "$RK_PARSED_CMDS")" ]; then
+ 		{
+-			TEMP_FILE=$(mktemp -u)
++			TEMP_FILE=$(mktemp "$RK_OUTDIR/.parsed_cmds.XXXXXX")
+ 			{
+ 				echo "#!/bin/bash"
+ 				run_build_hooks parse-cmds
+-			} > $TEMP_FILE
+-			mv $TEMP_FILE "$RK_PARSED_CMDS"
++			} > "$TEMP_FILE"
++			mv "$TEMP_FILE" "$RK_PARSED_CMDS"
+ 		}&
+ 	fi
+ 
+@@ -495,9 +495,10 @@ main()
+ 	trap 'err_handler' ERR
+ 	set -eE
+ 
+-	# Save intial envionments
++	# Save initial environments safely (0600 atomic temp file)
+ 	unset INITIAL_SESSION
+-	INITIAL_ENV=$(mktemp -u)
++	INITIAL_ENV=$(mktemp)
++	chmod 600 "$INITIAL_ENV"
+ 	env > "$INITIAL_ENV"
+ 
+ 	[ "$RK_SESSION" ] || INITIAL_SESSION=1
+diff --git a/common/scripts/post-wifibt.sh b/common/scripts/post-wifibt.sh
+index 297b5d0..dc7b7f6 100755
+--- a/common/scripts/post-wifibt.sh
++++ b/common/scripts/post-wifibt.sh
+@@ -251,7 +251,7 @@ build_wifibt()
+ 	fi
+ 
+ 	if [[ "$RK_WIFIBT_MODULES" = "AIC8800DC" ]];then
+-		$KMAKE M=$RKWIFIBT_DIR/drivers/aic8800/aic_btusb modules
++		# $KMAKE M=$RKWIFIBT_DIR/drivers/aic8800/aic_btusb modules
+ 		$KMAKE M=$RKWIFIBT_DIR/drivers/aic8800/aic8800 modules
+ 	fi
+ 
+@@ -381,12 +381,23 @@ build_wifibt()
+ 	fi
+ 
+ 	if [[ "$RK_WIFIBT_MODULES" =~ "AIC" ]];then
+-		echo "Copy AIC file to rootfs"
+-		cp $RKWIFIBT_DIR/drivers/aic8800/aic_btusb/*.ko $TARGET_DIR/lib/modules/
++		echo "Copy AIC Wi-Fi modules to rootfs (Bluetooth disabled)"
++		# Security: aic_btusb is intentionally not built or installed
+ 		cp $RKWIFIBT_DIR/drivers/aic8800/aic8800/aic_load_fw/*.ko $TARGET_DIR/lib/modules/
+ 		cp $RKWIFIBT_DIR/drivers/aic8800/aic8800/aic8800_fdrv/*.ko $TARGET_DIR/lib/modules/
+ 		cp -r $RKWIFIBT_DIR/firmware/aicsemi/aic* \
+ 			$TARGET_DIR/lib/firmware/
++		mkdir -p "$TARGET_DIR/etc/modprobe.d"
++		cat > "$TARGET_DIR/etc/modprobe.d/blacklist-bt.conf" <<'EOF'
++# Hardened SDK: Bluetooth stack and AIC8800 BT USB driver permanently disabled
++blacklist aic_btusb
++blacklist btusb
++blacklist bluetooth
++install aic_btusb /bin/false
++install btusb /bin/false
++install bluetooth /bin/false
++EOF
++		chmod 0644 "$TARGET_DIR/etc/modprobe.d/blacklist-bt.conf"
+ 	fi
+ 
+ 	# Install boot services

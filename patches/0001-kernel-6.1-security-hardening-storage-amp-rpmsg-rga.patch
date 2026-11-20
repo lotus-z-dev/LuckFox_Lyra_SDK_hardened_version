@@ -1,0 +1,1430 @@
+diff --git a/arch/arm/configs/rk3506_luckfox_defconfig b/arch/arm/configs/rk3506_luckfox_defconfig
+index b32047a04..1ad050f97 100644
+--- a/arch/arm/configs/rk3506_luckfox_defconfig
++++ b/arch/arm/configs/rk3506_luckfox_defconfig
+@@ -13,6 +13,11 @@ CONFIG_CGROUP_SCHED=y
+ CONFIG_CGROUP_FREEZER=y
+ CONFIG_CPUSETS=y
+ CONFIG_CGROUP_DEVICE=y
++CONFIG_NAMESPACES=y
++CONFIG_UTS_NS=y
++CONFIG_IPC_NS=y
++CONFIG_PID_NS=y
++CONFIG_NET_NS=y
+ CONFIG_BLK_DEV_INITRD=y
+ # CONFIG_RD_LZMA is not set
+ # CONFIG_RD_XZ is not set
+@@ -21,14 +26,14 @@ CONFIG_BLK_DEV_INITRD=y
+ # CONFIG_RD_ZSTD is not set
+ CONFIG_CC_OPTIMIZE_FOR_SIZE=y
+ CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+-# CONFIG_BUG is not set
++CONFIG_BUG=y
+ # CONFIG_ELF_CORE is not set
+ # CONFIG_BASE_FULL is not set
+ # CONFIG_IO_URING is not set
+ CONFIG_EMBEDDED=y
+ CONFIG_ARCH_ROCKCHIP=y
+-# CONFIG_HARDEN_BRANCH_PREDICTOR is not set
+-# CONFIG_HARDEN_BRANCH_HISTORY is not set
++CONFIG_HARDEN_BRANCH_PREDICTOR=y
++CONFIG_HARDEN_BRANCH_HISTORY=y
+ # CONFIG_VDSO is not set
+ # CONFIG_CACHE_L2X0 is not set
+ # CONFIG_ARM_ERRATA_643719 is not set
+@@ -37,10 +42,12 @@ CONFIG_VMSPLIT_3G_OPT=y
+ CONFIG_ARM_PSCI=y
+ CONFIG_HZ_300=y
+ CONFIG_THUMB2_KERNEL=y
+-# CONFIG_CPU_SW_DOMAIN_PAN is not set
++CONFIG_CPU_SW_DOMAIN_PAN=y
+ CONFIG_ARCH_FORCE_MAX_ORDER=9
+ CONFIG_UACCESS_WITH_MEMCPY=y
+-CONFIG_CMDLINE="user_debug=31"
++CONFIG_SECCOMP=y
++CONFIG_SECCOMP_FILTER=y
++CONFIG_CMDLINE=""
+ CONFIG_CMDLINE_EXTEND=y
+ CONFIG_CPU_FREQ=y
+ CONFIG_CPU_FREQ_STAT=y
+@@ -56,8 +63,25 @@ CONFIG_ARM_CPUIDLE=y
+ CONFIG_VFP=y
+ CONFIG_NEON=y
+ CONFIG_JUMP_LABEL=y
+-# CONFIG_STACKPROTECTOR_STRONG is not set
+-# CONFIG_STRICT_KERNEL_RWX is not set
++CONFIG_STACKPROTECTOR=y
++CONFIG_STACKPROTECTOR_STRONG=y
++CONFIG_STRICT_KERNEL_RWX=y
++CONFIG_STRICT_MODULE_RWX=y
++CONFIG_SLAB_FREELIST_RANDOM=y
++CONFIG_SLAB_FREELIST_HARDENED=y
++CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
++CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
++CONFIG_INIT_ON_FREE_DEFAULT_ON=y
++CONFIG_FORTIFY_SOURCE=y
++CONFIG_HARDENED_USERCOPY=y
++CONFIG_BUG_ON_DATA_CORRUPTION=y
++CONFIG_SECURITY=y
++CONFIG_SECURITY_DMESG_RESTRICT=y
++CONFIG_SECURITY_LANDLOCK=y
++CONFIG_SECURITY_YAMA=y
++CONFIG_LSM="landlock,yama"
++# CONFIG_DEVMEM is not set
++# CONFIG_DEVPORT is not set
+ CONFIG_MODULES=y
+ CONFIG_MODULE_UNLOAD=y
+ CONFIG_PARTITION_ADVANCED=y
+@@ -84,7 +108,7 @@ CONFIG_IPV6_OPTIMISTIC_DAD=y
+ CONFIG_IPV6_VTI=y
+ CONFIG_IPV6_MULTIPLE_TABLES=y
+ CONFIG_IPV6_MROUTE=y
+-CONFIG_MPTCP=y
++# CONFIG_MPTCP is not set
+ CONFIG_NETFILTER=y
+ CONFIG_NF_CONNTRACK=y
+ CONFIG_NF_TABLES=y
+@@ -240,16 +264,8 @@ CONFIG_NET_SCHED=y
+ CONFIG_NET_SCH_INGRESS=y
+ CONFIG_NET_CLS_FW=y
+ CONFIG_NET_CLS_ACT=y
+-CONFIG_CAN=y
+-CONFIG_BT=y
+-CONFIG_BT_RFCOMM=y
+-CONFIG_BT_RFCOMM_TTY=y
+-CONFIG_BT_BNEP=y
+-CONFIG_BT_HCIBTUSB=m
+-# CONFIG_BT_HCIBTUSB_BCM is not set
+-# CONFIG_BT_HCIBTUSB_RTL is not set
+-CONFIG_BT_HCIUART=y
+-CONFIG_BT_HCIUART_H4=y
++# CONFIG_CAN is not set
++# CONFIG_BT is not set
+ CONFIG_RFKILL=y
+ CONFIG_RFKILL_RK=y
+ CONFIG_DEVTMPFS=y
+@@ -275,7 +291,7 @@ CONFIG_BLK_DEV_SD=y
+ # CONFIG_SCSI_LOWLEVEL is not set
+ CONFIG_NETDEVICES=y
+ CONFIG_WIREGUARD=y
+-CONFIG_WIREGUARD_DEBUG=y
++# CONFIG_WIREGUARD_DEBUG is not set
+ CONFIG_TUN=y
+ # CONFIG_NET_VENDOR_ALACRITECH is not set
+ # CONFIG_NET_VENDOR_AMAZON is not set
+@@ -328,8 +344,6 @@ CONFIG_DWMAC_ROCKCHIP_TOOL=y
+ # CONFIG_NET_VENDOR_XILINX is not set
+ CONFIG_CH182H2_LED_TRIGGER_PHY=y
+ CONFIG_MOTORCOMM_PHY=y
+-CONFIG_CANFD_ROCKCHIP=y
+-CONFIG_CANFD_RK3576=y
+ CONFIG_PPP=y
+ CONFIG_PPP_BSDCOMP=y
+ CONFIG_PPP_DEFLATE=y
+@@ -425,48 +439,20 @@ CONFIG_MEDIA_SUPPORT_FILTER=y
+ # CONFIG_MEDIA_SUBDRV_AUTOSELECT is not set
+ CONFIG_MEDIA_CAMERA_SUPPORT=y
+ CONFIG_MEDIA_PLATFORM_SUPPORT=y
++CONFIG_MEDIA_USB_SUPPORT=y
++CONFIG_VIDEO_DEV=y
++CONFIG_VIDEO_V4L2=y
++CONFIG_VIDEO_V4L2_SUBDEV_API=y
++CONFIG_USB_VIDEO_CLASS=y
++CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+ CONFIG_V4L_PLATFORM_DRIVERS=y
+ CONFIG_ROCKCHIP_FLEXBUS_CIF=y
+-CONFIG_DRM=y
+-CONFIG_DRM_IGNORE_IOTCL_PERMIT=y
+-CONFIG_DRM_ROCKCHIP=y
+-CONFIG_ROCKCHIP_VOP=y
+-CONFIG_ROCKCHIP_DW_MIPI_DSI=y
+-# CONFIG_ROCKCHIP_DW_MIPI_DSI2 is not set
+-CONFIG_ROCKCHIP_RGB=y
+-CONFIG_DRM_PANEL_SIMPLE=y
+-CONFIG_DRM_PANEL_SIMPLE_OF_ONLY=y
+-CONFIG_DRM_SII902X=y
+-CONFIG_FB=y
+-CONFIG_BACKLIGHT_CLASS_DEVICE=y
+-CONFIG_BACKLIGHT_PWM=y
+-CONFIG_BACKLIGHT_WAVESHARE=y
+-CONFIG_ROCKCHIP_MULTI_RGA=y
+-CONFIG_FRAMEBUFFER_CONSOLE=y
+-CONFIG_SOUND=y
+-CONFIG_SND=y
+-# CONFIG_SND_SUPPORT_OLD_API is not set
+-# CONFIG_SND_DRIVERS is not set
+-# CONFIG_SND_ARM is not set
+-CONFIG_SND_SOC=y
+-CONFIG_SND_SOC_DYNAMIC_DMA_CHAN=y
+-CONFIG_SND_SOC_ROCKCHIP=y
+-CONFIG_SND_SOC_ROCKCHIP_ASRC=y
+-CONFIG_SND_SOC_ROCKCHIP_PDM_V2=y
+-CONFIG_SND_SOC_ROCKCHIP_SAI=y
+-CONFIG_SND_SOC_ROCKCHIP_SPDIF=y
+-CONFIG_SND_SOC_ROCKCHIP_SPDIFRX=y
+-CONFIG_SND_SOC_ROCKCHIP_MULTICODECS=y
+-CONFIG_SND_SOC_DUMMY_CODEC=y
+-CONFIG_SND_SOC_ES7202=y
+-CONFIG_SND_SOC_ES7202_MIC_MAX_CHANNELS=8
+-CONFIG_SND_SOC_ES8311=y
+-CONFIG_SND_SOC_ES8323=y
+-CONFIG_SND_SOC_ES8328_I2C=y
+-CONFIG_SND_SOC_RK3506=y
+-CONFIG_SND_SOC_RK730=y
+-CONFIG_SND_SOC_RK_DSM=y
+-CONFIG_SND_SIMPLE_CARD=y
++# CONFIG_DRM is not set
++# CONFIG_FB is not set
++# CONFIG_BACKLIGHT_CLASS_DEVICE is not set
++# CONFIG_ROCKCHIP_MULTI_RGA is not set
++# CONFIG_SOUND is not set
++# CONFIG_SND is not set
+ CONFIG_USB_HIDDEV=y
+ CONFIG_USB=y
+ CONFIG_USB_OTG=y
+@@ -481,7 +467,7 @@ CONFIG_USB_CONFIGFS=y
+ CONFIG_USB_CONFIGFS_UEVENT=y
+ CONFIG_USB_CONFIGFS_ACM=y
+ CONFIG_USB_CONFIGFS_RNDIS=y
+-CONFIG_USB_CONFIGFS_F_FS=y
++# CONFIG_USB_CONFIGFS_F_FS is not set
+ CONFIG_MMC=y
+ CONFIG_MMC_QUEUE_DEPTH=1
+ CONFIG_MMC_DW=y
+@@ -510,7 +496,7 @@ CONFIG_MAILBOX=y
+ CONFIG_ROCKCHIP_MBOX=y
+ # CONFIG_IOMMU_SUPPORT is not set
+ CONFIG_RPMSG_ROCKCHIP_MBOX=y
+-CONFIG_RPMSG_ROCKCHIP_TEST=y
++# CONFIG_RPMSG_ROCKCHIP_TEST is not set
+ CONFIG_RPMSG_VIRTIO=y
+ CONFIG_CPU_RK3506=y
+ CONFIG_ROCKCHIP_AMP=y
+@@ -521,13 +507,8 @@ CONFIG_ROCKCHIP_OPP=y
+ CONFIG_ROCKCHIP_PM_DOMAINS=y
+ CONFIG_ROCKCHIP_SUSPEND_MODE=y
+ CONFIG_ROCKCHIP_SYSTEM_MONITOR=y
+-CONFIG_FIQ_DEBUGGER=y
+-CONFIG_FIQ_DEBUGGER_NO_SLEEP=y
+-CONFIG_FIQ_DEBUGGER_CONSOLE=y
+-CONFIG_FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE=y
+-CONFIG_FIQ_DEBUGGER_TRUST_ZONE=y
+-CONFIG_RK_CONSOLE_THREAD=y
+-CONFIG_ROCKCHIP_DEBUG=y
++# CONFIG_FIQ_DEBUGGER is not set
++# CONFIG_ROCKCHIP_DEBUG is not set
+ CONFIG_ROCKCHIP_MINI_KERNEL=y
+ CONFIG_PM_DEVFREQ=y
+ CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y
+@@ -574,12 +555,12 @@ CONFIG_CMA_SIZE_MBYTES=64
+ CONFIG_PRINTK_TIME=y
+ CONFIG_PRINTK_TIME_FROM_ARM_ARCH_TIMER=y
+ # CONFIG_DEBUG_MISC is not set
+-CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y
+-CONFIG_MAGIC_SYSRQ=y
+-# CONFIG_MAGIC_SYSRQ_SERIAL is not set
+-CONFIG_DEBUG_FS=y
++# CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT is not set
++# CONFIG_MAGIC_SYSRQ is not set
++# CONFIG_DEBUG_FS is not set
+ # CONFIG_SLUB_DEBUG is not set
+ CONFIG_PANIC_ON_OOPS=y
++CONFIG_PANIC_TIMEOUT=2
+ CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
+ CONFIG_HARDLOCKUP_DETECTOR=y
+ CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
+@@ -588,5 +569,5 @@ CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
+ CONFIG_RCU_CPU_STALL_TIMEOUT=60
+ CONFIG_BOOTPARAM_RCU_STALL_PANIC=y
+ # CONFIG_FTRACE is not set
+-CONFIG_DEBUG_USER=y
++# CONFIG_DEBUG_USER is not set
+ # CONFIG_RUNTIME_TESTING_MENU is not set
+diff --git a/drivers/rpmsg/rockchip_rpmsg_test.c b/drivers/rpmsg/rockchip_rpmsg_test.c
+index 7f607bd29..ee49be2b8 100644
+--- a/drivers/rpmsg/rockchip_rpmsg_test.c
++++ b/drivers/rpmsg/rockchip_rpmsg_test.c
+@@ -32,9 +32,12 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
+ 	uint32_t remote_ept_id;
+ 	struct rpmsg_info_t *info = dev_get_drvdata(&rp->dev);
+ 
++	if (!info || !payload || payload_len < 0)
++		return -EINVAL;
++
+ 	remote_ept_id = src;
+-	dev_info(&rp->dev, "rx msg %s rx_count %d(remote_ept_id: 0x%x)\n",
+-			(char *)payload, ++info->rx_count, remote_ept_id);
++	dev_info(&rp->dev, "rx msg %.*s rx_count %d(remote_ept_id: 0x%x)\n",
++		 payload_len, (char *)payload, ++info->rx_count, remote_ept_id);
+ 
+ 	/* test should not live forever */
+ 	if (info->rx_count >= MSG_LIMIT) {
+@@ -47,7 +50,7 @@ static int rockchip_rpmsg_test_cb(struct rpmsg_device *rp, void *payload,
+ 	ret = rpmsg_sendto(rp->ept, LINUX_TEST_MSG_2, strlen(LINUX_TEST_MSG_2), remote_ept_id);
+ 	if (ret)
+ 		dev_err(&rp->dev, "rpmsg_send failed: %d\n", ret);
+-		return ret;
++	return ret;
+ }
+ 
+ static int rockchip_rpmsg_test_probe(struct rpmsg_device *rp)
+diff --git a/drivers/soc/rockchip/flash_vendor_storage.c b/drivers/soc/rockchip/flash_vendor_storage.c
+index 7c8cd338d..9098f4315 100644
+--- a/drivers/soc/rockchip/flash_vendor_storage.c
++++ b/drivers/soc/rockchip/flash_vendor_storage.c
+@@ -6,6 +6,7 @@
+ #include <linux/kthread.h>
+ #include <linux/miscdevice.h>
+ #include <linux/module.h>
++#include <linux/mutex.h>
+ #include <linux/platform_device.h>
+ #include <linux/slab.h>
+ #include <linux/soc/rockchip/rk_vendor_storage.h>
+@@ -30,6 +31,7 @@
+ static int (*_flash_read)(u32 sec, u32 n_sec, void *p_data);
+ static int (*_flash_write)(u32 sec, u32 n_sec, void *p_data);
+ static struct flash_vendor_info *g_vendor;
++static DEFINE_MUTEX(vendor_ops_mutex);
+ 
+ int flash_vendor_dev_ops_register(int (*read)(u32 sec,
+ 					      u32 n_sec,
+@@ -78,6 +80,17 @@ static u32 flash_vendor_init(void)
+ 				FLASH_VENDOR_PART_SIZE * max_index,
+ 				FLASH_VENDOR_PART_SIZE,
+ 		g_vendor);
++		if (g_vendor->item_num > ARRAY_SIZE(g_vendor->item) ||
++		    g_vendor->free_offset > sizeof(g_vendor->data)) {
++			memset(g_vendor, 0, sizeof(*g_vendor));
++			g_vendor->version = 1;
++			g_vendor->tag = FLASH_VENDOR_TAG;
++			g_vendor->version2 = g_vendor->version;
++			g_vendor->free_offset = 0;
++			g_vendor->free_size = sizeof(g_vendor->data);
++		} else {
++			g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
++		}
+ 	} else {
+ 		memset(g_vendor, 0, sizeof(*g_vendor));
+ 		g_vendor->version = 1;
+@@ -93,18 +106,23 @@ static u32 flash_vendor_init(void)
+ 
+ static int flash_vendor_read(u32 id, void *pbuf, u32 size)
+ {
+-	u32 i;
++	u32 i, item_num;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -1;
+ 
+-	for (i = 0; i < g_vendor->item_num; i++) {
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	for (i = 0; i < item_num; i++) {
+ 		if (g_vendor->item[i].id == id) {
+-			if (size > g_vendor->item[i].size)
+-				size = g_vendor->item[i].size;
+-			memcpy(pbuf,
+-			       &g_vendor->data[g_vendor->item[i].offset],
+-			       size);
++			u32 item_off = g_vendor->item[i].offset;
++			u32 item_sz = g_vendor->item[i].size;
++
++			if (item_off > sizeof(g_vendor->data) ||
++			    item_sz > sizeof(g_vendor->data) - item_off)
++				return -EINVAL;
++			if (size > item_sz)
++				size = item_sz;
++			memcpy(pbuf, &g_vendor->data[item_off], size);
+ 			return size;
+ 		}
+ 	}
+@@ -119,16 +137,25 @@ static int flash_vendor_write(u32 id, void *pbuf, u32 size)
+ 	struct vendor_item *item;
+ 	struct vendor_item *next_item;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -1;
+ 
++	if (size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	p_data = g_vendor->data;
+-	item_num = g_vendor->item_num;
+-	align_size = ALIGN(size, 0x40); /* align to 64 bytes*/
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	align_size = ALIGN(size, 0x40); /* align to 64 bytes */
++	if (align_size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	next_index = g_vendor->next_index;
+ 	for (i = 0; i < item_num; i++) {
+ 		item = &g_vendor->item[i];
+ 		if (item->id == id) {
++			if (item->offset > sizeof(g_vendor->data) ||
++			    item->size > sizeof(g_vendor->data) - item->offset)
++				return -EINVAL;
+ 			alloc_size = ALIGN(item->size, 0x40);
+ 			if (size > alloc_size) {
+ 				if (g_vendor->free_size < align_size)
+@@ -137,28 +164,34 @@ static int flash_vendor_write(u32 id, void *pbuf, u32 size)
+ 				for (j = i; j < item_num - 1; j++) {
+ 					item = &g_vendor->item[j];
+ 					next_item = &g_vendor->item[j + 1];
++					next_size = ALIGN(next_item->size, 0x40);
++					if (next_item->offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - next_item->offset ||
++					    offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - offset)
++						return -EINVAL;
+ 					item->id = next_item->id;
+ 					item->size = next_item->size;
+ 					item->offset = offset;
+-					next_size = ALIGN(next_item->size,
+-							  0x40);
+-					memcpy(&p_data[offset],
+-					       &p_data[next_item->offset],
+-					       next_size);
++					memmove(&p_data[offset],
++						&p_data[next_item->offset],
++						next_size);
+ 					offset += next_size;
+ 				}
++				if (offset > sizeof(g_vendor->data) ||
++				    align_size > sizeof(g_vendor->data) - offset)
++					return -EINVAL;
+ 				item = &g_vendor->item[j];
+ 				item->id = id;
+ 				item->offset = offset;
+ 				item->size = size;
+ 				memcpy(&p_data[item->offset], pbuf, size);
+ 				g_vendor->free_offset = offset + align_size;
+-				g_vendor->free_size -= (align_size -
+-							alloc_size);
++				g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
+ 			} else {
+-				memcpy(&p_data[item->offset],
+-				       pbuf,
+-				       size);
++				if (size > sizeof(g_vendor->data) - item->offset)
++					return -EINVAL;
++				memcpy(&p_data[item->offset], pbuf, size);
+ 				g_vendor->item[i].size = size;
+ 			}
+ 			g_vendor->version++;
+@@ -174,11 +207,13 @@ static int flash_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_offset <= sizeof(g_vendor->data) &&
++	    g_vendor->free_size >= align_size &&
++	    align_size <= sizeof(g_vendor->data) - g_vendor->free_offset &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+-		item->size = align_size;
+ 		item->size = size;
+ 		g_vendor->free_offset += align_size;
+ 		g_vendor->free_size -= align_size;
+@@ -196,7 +231,7 @@ static int flash_vendor_write(u32 id, void *pbuf, u32 size)
+ 		return 0;
+ 	}
+ 
+-	return(-1);
++	return (-1);
+ }
+ 
+ #if (FLASH_VENDOR_TEST)
+@@ -234,6 +269,13 @@ static void flash_vendor_test(void)
+ }
+ #endif
+ 
++static int vendor_storage_open(struct inode *inode, struct file *file)
++{
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	return 0;
++}
++
+ static long vendor_storage_ioctl(struct file *file,
+ 				 unsigned int cmd,
+ 				 unsigned long arg)
+@@ -243,11 +285,15 @@ static long vendor_storage_ioctl(struct file *file,
+ 	u32 *temp_buf;
+ 	struct RK_VENDOR_REQ *req;
+ 
+-	req = kmalloc(sizeof(*req), GFP_KERNEL);
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	req = kzalloc(sizeof(*req), GFP_KERNEL);
+ 	if (!req)
+-		return ret;
++		return -ENOMEM;
+ 
+ 	temp_buf = (u32 *)req;
++	mutex_lock(&vendor_ops_mutex);
+ 
+ 	switch (cmd) {
+ 	case VENDOR_READ_IO:
+@@ -260,10 +306,15 @@ static long vendor_storage_ioctl(struct file *file,
+ 			break;
+ 		}
+ 		if (req->tag == VENDOR_REQ_TAG) {
++			if (req->len > sizeof(req->data)) {
++				ret = -EINVAL;
++				break;
++			}
++			memset(req->data, 0, sizeof(req->data));
+ 			size = flash_vendor_read(req->id,
+ 						 req->data,
+ 						 req->len);
+-			if (size > 0) {
++			if (size >= 0 && size <= (int)sizeof(req->data)) {
+ 				req->len = size;
+ 				ret = 0;
+ 				if (copy_to_user((void __user *)arg,
+@@ -282,20 +333,24 @@ static long vendor_storage_ioctl(struct file *file,
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-		if (req->tag == VENDOR_REQ_TAG)
++		if (req->tag == VENDOR_REQ_TAG &&
++		    req->len <= sizeof(req->data))
+ 			ret = flash_vendor_write(req->id,
+ 						 req->data,
+ 						 req->len);
+ 	} break;
+ 	default:
+-		return -EINVAL;
++		ret = -EINVAL;
++		break;
+ 	}
++	mutex_unlock(&vendor_ops_mutex);
+ 	kfree(temp_buf);
+ 	DLOG("flash_vendor_ioctl cmd=%x ret = %lx\n", cmd, ret);
+ 	return ret;
+ }
+ 
+ static const struct file_operations vendor_storage_fops = {
++	.open		= vendor_storage_open,
+ 	.compat_ioctl	= vendor_storage_ioctl,
+ 	.unlocked_ioctl = vendor_storage_ioctl,
+ };
+diff --git a/drivers/soc/rockchip/iomux.c b/drivers/soc/rockchip/iomux.c
+index 110feb7f8..2d6e44c65 100644
+--- a/drivers/soc/rockchip/iomux.c
++++ b/drivers/soc/rockchip/iomux.c
+@@ -14,6 +14,7 @@
+ #include <linux/miscdevice.h>
+ #include <linux/slab.h>
+ #include <linux/gpio/driver.h>
++#include <linux/capability.h>
+ #include <uapi/linux/rk-iomux.h>
+ #include "../../pinctrl/pinctrl-rockchip.h"
+ 
+@@ -26,6 +27,9 @@ static long rk_iomux_ioctl(struct file *file, unsigned int cmd, unsigned long ar
+ 	struct iomux_ioctl_data data;
+ 	int ret = 0;
+ 
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	if (_IOC_SIZE(cmd) > sizeof(data))
+ 		return -EINVAL;
+ 
+@@ -80,6 +84,7 @@ static __init int rk_iomux_device_create(void)
+ 	ret = misc_register(&cdev->dev);
+ 	if (ret) {
+ 		pr_err("failed to register iomux device (%d)\n", ret);
++		kfree(cdev);
+ 		return ret;
+ 	}
+ 
+diff --git a/drivers/soc/rockchip/mtd_vendor_storage.c b/drivers/soc/rockchip/mtd_vendor_storage.c
+index 1f32930d9..d28d5843e 100644
+--- a/drivers/soc/rockchip/mtd_vendor_storage.c
++++ b/drivers/soc/rockchip/mtd_vendor_storage.c
+@@ -52,10 +52,14 @@ static struct platform_device *g_pdev;
+ static int mtd_vendor_nand_write(void)
+ {
+ 	size_t bytes_write;
+-	int err, count = 0;
++	int err, count = 0, retries = 0;
++	const int max_retries = 64;
+ 	struct erase_info ei;
+ 
+ re_write:
++	if (retries++ >= max_retries)
++		return -EIO;
++
+ 	if (nand_info.page_offset >= mtd_erase_size) {
+ 		nand_info.blk_offset += mtd_erase_size;
+ 		if (nand_info.blk_offset >= mtd->size)
+@@ -162,6 +166,16 @@ static int mtd_vendor_storage_init(void)
+ 				break;
+ 			}
+ 		}
++		if (g_vendor->item_num > ARRAY_SIZE(g_vendor->item) ||
++		    g_vendor->free_offset > sizeof(g_vendor->data)) {
++			memset((u8 *)g_vendor, 0, sizeof(*g_vendor));
++			g_vendor->version = 1;
++			g_vendor->tag = MTD_VENDOR_TAG;
++			g_vendor->free_size = sizeof(g_vendor->data);
++			g_vendor->version2 = g_vendor->version;
++		} else {
++			g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
++		}
+ 	} else {
+ 		memset((u8 *)g_vendor, 0, sizeof(*g_vendor));
+ 		g_vendor->version = 1;
+@@ -184,18 +198,23 @@ static int mtd_vendor_storage_init(void)
+ 
+ static int mtd_vendor_read(u32 id, void *pbuf, u32 size)
+ {
+-	u32 i;
++	u32 i, item_num;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -ENOMEM;
+ 
+-	for (i = 0; i < g_vendor->item_num; i++) {
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	for (i = 0; i < item_num; i++) {
+ 		if (g_vendor->item[i].id == id) {
+-			if (size > g_vendor->item[i].size)
+-				size = g_vendor->item[i].size;
+-			memcpy(pbuf,
+-			       &g_vendor->data[g_vendor->item[i].offset],
+-			       size);
++			u32 item_off = g_vendor->item[i].offset;
++			u32 item_sz = g_vendor->item[i].size;
++
++			if (item_off > sizeof(g_vendor->data) ||
++			    item_sz > sizeof(g_vendor->data) - item_off)
++				return -EINVAL;
++			if (size > item_sz)
++				size = item_sz;
++			memcpy(pbuf, &g_vendor->data[item_off], size);
+ 			return size;
+ 		}
+ 	}
+@@ -210,15 +229,24 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 	struct vendor_item *item;
+ 	struct vendor_item *next_item;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -ENOMEM;
+ 
++	if (size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	p_data = g_vendor->data;
+-	item_num = g_vendor->item_num;
+-	align_size = ALIGN(size, 0x40); /* align to 64 bytes*/
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	align_size = ALIGN(size, 0x40); /* align to 64 bytes */
++	if (align_size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	for (i = 0; i < item_num; i++) {
+ 		item = &g_vendor->item[i];
+ 		if (item->id == id) {
++			if (item->offset > sizeof(g_vendor->data) ||
++			    item->size > sizeof(g_vendor->data) - item->offset)
++				return -EINVAL;
+ 			alloc_size = ALIGN(item->size, 0x40);
+ 			if (size > alloc_size) {
+ 				if (g_vendor->free_size < align_size)
+@@ -227,16 +255,23 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 				for (j = i; j < item_num - 1; j++) {
+ 					item = &g_vendor->item[j];
+ 					next_item = &g_vendor->item[j + 1];
++					next_size = ALIGN(next_item->size, 0x40);
++					if (next_item->offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - next_item->offset ||
++					    offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - offset)
++						return -EINVAL;
+ 					item->id = next_item->id;
+ 					item->size = next_item->size;
+ 					item->offset = offset;
+-					next_size = ALIGN(next_item->size,
+-							  0x40);
+-					memcpy(&p_data[offset],
+-					       &p_data[next_item->offset],
+-					       next_size);
++					memmove(&p_data[offset],
++						&p_data[next_item->offset],
++						next_size);
+ 					offset += next_size;
+ 				}
++				if (offset > sizeof(g_vendor->data) ||
++				    align_size > sizeof(g_vendor->data) - offset)
++					return -EINVAL;
+ 				item = &g_vendor->item[j];
+ 				item->id = id;
+ 				item->offset = offset;
+@@ -245,9 +280,9 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 				g_vendor->free_offset = offset + align_size;
+ 				g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
+ 			} else {
+-				memcpy(&p_data[item->offset],
+-				       pbuf,
+-				       size);
++				if (size > sizeof(g_vendor->data) - item->offset)
++					return -EINVAL;
++				memcpy(&p_data[item->offset], pbuf, size);
+ 				g_vendor->item[i].size = size;
+ 			}
+ 			g_vendor->version++;
+@@ -257,7 +292,10 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_offset <= sizeof(g_vendor->data) &&
++	    g_vendor->free_size >= align_size &&
++	    align_size <= sizeof(g_vendor->data) - g_vendor->free_offset &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+@@ -271,11 +309,13 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
+ 		mtd_vendor_nand_write();
+ 		return 0;
+ 	}
+-	return(-1);
++	return (-1);
+ }
+ 
+ static int vendor_storage_open(struct inode *inode, struct file *file)
+ {
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
+ 	return 0;
+ }
+ 
+@@ -292,7 +332,10 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 	struct RK_VENDOR_REQ *v_req;
+ 	u32 *page_buf;
+ 
+-	page_buf = kmalloc(4096, GFP_KERNEL);
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	page_buf = kzalloc(4096, GFP_KERNEL);
+ 	if (!page_buf)
+ 		return -ENOMEM;
+ 
+@@ -308,14 +351,15 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 			break;
+ 		}
+ 		if (v_req->tag == VENDOR_REQ_TAG) {
+-			size = mtd_vendor_read(v_req->id, v_req->data,
+-						v_req->len);
+-			if (size != -1) {
++			u16 req_len = min_t(u16, v_req->len, 4096 - 8);
++
++			size = mtd_vendor_read(v_req->id, v_req->data, req_len);
++			if (size >= 0 && size <= 4096 - 8) {
+ 				v_req->len = size;
+ 				ret = 0;
+ 				if (copy_to_user((void __user *)arg,
+ 						 page_buf,
+-						 v_req->len + 8))
++						 size + 8))
+ 					ret = -EFAULT;
+ 			}
+ 		}
+@@ -323,19 +367,24 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 
+ 	case VENDOR_WRITE_IO:
+ 	{
++		u16 req_id, req_len;
++
+ 		if (copy_from_user(page_buf, (void __user *)arg, 8)) {
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-		if (v_req->tag == VENDOR_REQ_TAG && (v_req->len < 4096 - 8)) {
+-			if (copy_from_user(page_buf, (void __user *)arg,
+-					   v_req->len + 8)) {
++		req_id = v_req->id;
++		req_len = v_req->len;
++		if (v_req->tag == VENDOR_REQ_TAG && req_len < 4096 - 8) {
++			/* Copy payload only to prevent double-fetch TOCTOU on header fields */
++			if (req_len > 0 &&
++			    copy_from_user(v_req->data,
++					   (const u8 __user *)arg + 8,
++					   req_len)) {
+ 				ret = -EFAULT;
+ 				break;
+ 			}
+-			ret = mtd_vendor_write(v_req->id,
+-						v_req->data,
+-						v_req->len);
++			ret = mtd_vendor_write(req_id, v_req->data, req_len);
+ 		}
+ 	} break;
+ 
+diff --git a/drivers/soc/rockchip/rockchip_amp.c b/drivers/soc/rockchip/rockchip_amp.c
+index b3a744036..2bca61b1e 100644
+--- a/drivers/soc/rockchip/rockchip_amp.c
++++ b/drivers/soc/rockchip/rockchip_amp.c
+@@ -9,6 +9,7 @@
+ #include <asm/cputype.h>
+ #include <linux/clk.h>
+ #include <linux/module.h>
++#include <linux/capability.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_domain.h>
+@@ -167,24 +168,27 @@ static ssize_t boot_cpu_store(struct device *dev,
+ {
+ 	struct arm_smccc_res res = {0};
+ 	unsigned long cpu_id;
+-	char cmd[10];
++	char cmd[10] = {0};
+ 	int ret, idx;
+ 
+-	ret = sscanf(buf, "%s", cmd);
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	ret = sscanf(buf, "%9s", cmd);
+ 	if (ret != 1) {
+ 		pr_info("Use on/off [cpu id] or status [cpu id]\n");
+ 		return -EINVAL;
+ 	}
+ 
+-	if (!strncmp(cmd, "status", strlen("status"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++	if (!strcmp(cmd, "status")) {
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+ 		res = sip_smc_get_amp_info(RK_AMP_SUB_FUNC_GET_CPU_STATUS, cpu_id);
+ 		cpu_status_print(cpu_id, &res);
+-	} else if (!strncmp(cmd, "off", strlen("off"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++	} else if (!strcmp(cmd, "off")) {
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+@@ -195,8 +199,8 @@ static ssize_t boot_cpu_store(struct device *dev,
+ 			if (ret)
+ 				dev_warn(dev, "failed to request cpu[%lx] off, ret=%d!\n", cpu_id, ret);
+ 		}
+-	} else if (!strncmp(cmd, "on", strlen("on"))) {
+-		ret = sscanf(buf, "%s %lx", cmd, &cpu_id);
++	} else if (!strcmp(cmd, "on")) {
++		ret = sscanf(buf, "%9s %lx", cmd, &cpu_id);
+ 		if (ret != 2)
+ 			return -EINVAL;
+ 
+@@ -222,7 +226,7 @@ static ssize_t boot_cpu_store(struct device *dev,
+ 
+ static struct kobject *rk_amp_kobj;
+ static struct device_attribute rk_amp_attrs[] = {
+-	__ATTR(boot_cpu, 0664, boot_cpu_show, boot_cpu_store),
++	__ATTR(boot_cpu, 0600, boot_cpu_show, boot_cpu_store),
+ };
+ 
+ static int rockchip_amp_boot_cpus(struct device *dev,
+@@ -285,21 +289,29 @@ static int rockchip_amp_boot_cpus(struct device *dev,
+ 
+ int rockchip_amp_check_amp_irq(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].amp_flag;
+ }
+ 
+ u32 rockchip_amp_get_irq_prio(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].prio;
+ }
+ 
+ u32 rockchip_amp_get_irq_cpumask(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].cpumask;
+ }
+ 
+ int rockchip_amp_need_init_amp_irq(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].amp_flag;
+ }
+ 
+@@ -321,6 +333,8 @@ static u32 amp_get_cpumask_bit(u64 aff)
+ 
+ u64 rockchip_amp_get_irq_aff(u32 irq)
+ {
++	if (irq >= MAX_GIC_SPI_NUM)
++		return 0;
+ 	return amp_ctrl.irqs_cfg[irq].aff;
+ }
+ 
+@@ -337,6 +351,9 @@ static int amp_gic_get_gpio_group_bank_type_config(struct device_node *np,
+ 	if (of_property_read_u32_array(np, "hw-irq", &irq, 1))
+ 		return -EINVAL;
+ 
++	if (irq >= MAX_GIC_SPI_NUM)
++		return -EINVAL;
++
+ 	if (of_property_read_u64_array(np, "hw-irq-cpu-aff", &irq_aff, 1))
+ 		return -EINVAL;
+ 
+@@ -379,7 +396,7 @@ static int gic_amp_get_gpio_prio_group_config(struct device_node *np,
+ 	struct amp_irq_cfg_s *irqs_cfg;
+ 	struct amp_gpio_group_prio_group_info *prio_grp;
+ 
+-	if (prio_id >= GPIO_GROUP_PRIO_MAX)
++	if (prio_id < 0 || prio_id >= GPIO_GROUP_PRIO_MAX)
+ 		return -EINVAL;
+ 
+ 	if (of_property_read_u32_array(np, "group-prio", &prio, 1))
+@@ -395,17 +412,24 @@ static int gic_amp_get_gpio_prio_group_config(struct device_node *np,
+ 	AMP_GIC_DBG(" %s: bank-%d, group prio [%d]=0x%x\n",
+ 		    __func__, gpio_grp->bank_id, prio_id, prio);
+ 
+-	if (!(count0 == count1 && count0 == count2 && count0)) {
++	if (count0 <= 0 || count0 != count1 || count0 != count2) {
+ 		pr_err("%s: group-irq count is error(%d %d %d)\n",
+ 		       __func__, count0, count1, count2);
+ 		return -EINVAL;
+ 	}
+ 
+-	if (count0 >= AMP_AFF_MAX_CPU)
+-		pr_err("%s: prio group is overflow\n", __func__);
++	if (count0 > AMP_AFF_MAX_CPU) {
++		pr_err("%s: prio group is overflow (%d > %d)\n",
++		       __func__, count0, AMP_AFF_MAX_CPU);
++		return -EINVAL;
++	}
+ 
+ 	for (i = 0; i < count0; i++) {
+ 		of_property_read_u32_index(np, "group-irq-id", i, &irq_id);
++		if (irq_id >= MAX_GIC_SPI_NUM) {
++			pr_err("%s: irq_id %u out of bounds\n", __func__, irq_id);
++			return -EINVAL;
++		}
+ 		prio_grp->irq_id[i] = irq_id;
+ 
+ 		of_property_read_u64_index(np, "group-irq-aff", i, &irq_aff);
+@@ -546,6 +570,11 @@ static int amp_gic_get_cpumask(struct device_node *np, struct amp_gic_ctrl_s *am
+ 					   2 * i, &aff);
+ 		cluster = MPIDR_AFFINITY_LEVEL(aff, 1);
+ 		aff_cpu = MPIDR_AFFINITY_LEVEL(aff, 0);
++		if (cluster >= AMP_AFF_MAX_CLUSTER || aff_cpu >= AMP_AFF_MAX_CPU) {
++			pr_err("%s: cluster(%u) or cpu(%u) out of bounds\n",
++			       __func__, cluster, aff_cpu);
++			return -EINVAL;
++		}
+ 		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].aff = aff;
+ 
+ 		of_property_read_u64_index(np, "amp-cpu-aff-maskbits",
+@@ -580,13 +609,13 @@ static void amp_gic_get_irqs_config(struct device_node *np,
+ 
+ 	count = of_property_count_u64_elems(np, "amp-irqs");
+ 
+-	if (count % 3)
++	if (count <= 0 || count % 3)
+ 		return;
+ 
+ 	for (i = 0; i < count / 3; i++) {
+ 		of_property_read_u64_index(np, "amp-irqs", 3 * i, &val);
+ 		irq = (u32)val;
+-		if (irq > amp_ctrl->spis_num)
++		if (irq >= MAX_GIC_SPI_NUM || irq > amp_ctrl->spis_num)
+ 			break;
+ 
+ 		of_property_read_u64_index(np, "amp-irqs", 3 * i + 1, &prio);
+@@ -668,6 +697,8 @@ static int rockchip_amp_probe(struct platform_device *pdev)
+ 	if (!rkamp_dev)
+ 		return -ENOMEM;
+ 
++	platform_set_drvdata(pdev, rkamp_dev);
++
+ 	rkamp_dev->num_clks = devm_clk_bulk_get_all(&pdev->dev, &rkamp_dev->clks);
+ 	if (rkamp_dev->num_clks < 0)
+ 		return -ENODEV;
+@@ -731,6 +762,9 @@ static int rockchip_amp_remove(struct platform_device *pdev)
+ 	struct rkamp_device *rkamp_dev = platform_get_drvdata(pdev);
+ 	int i;
+ 
++	if (!rkamp_dev)
++		return 0;
++
+ 	clk_bulk_disable_unprepare(rkamp_dev->num_clks, rkamp_dev->clks);
+ 
+ 	if (rkamp_dev->num_pds == 1) {
+diff --git a/drivers/soc/rockchip/sdmmc_vendor_storage.c b/drivers/soc/rockchip/sdmmc_vendor_storage.c
+index 5c14c484c..2c3b0d328 100644
+--- a/drivers/soc/rockchip/sdmmc_vendor_storage.c
++++ b/drivers/soc/rockchip/sdmmc_vendor_storage.c
+@@ -85,6 +85,9 @@ static int emmc_vendor_storage_init(void)
+ 				EMMC_VENDOR_PART_SIZE * max_index,
+ 				EMMC_VENDOR_PART_SIZE, 0))
+ 			goto error_exit;
++		if (g_vendor->item_num > ARRAY_SIZE(g_vendor->item) ||
++		    g_vendor->free_offset > sizeof(g_vendor->data))
++			goto error_exit;
+ 		g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
+ 	} else {
+ 		memset((void *)g_vendor, 0, sizeof(*g_vendor));
+@@ -101,18 +104,23 @@ static int emmc_vendor_storage_init(void)
+ 
+ static int emmc_vendor_read(u32 id, void *pbuf, u32 size)
+ {
+-	u32 i;
++	u32 i, item_num;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -ENOMEM;
+ 
+-	for (i = 0; i < g_vendor->item_num; i++) {
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	for (i = 0; i < item_num; i++) {
+ 		if (g_vendor->item[i].id == id) {
+-			if (size > g_vendor->item[i].size)
+-				size = g_vendor->item[i].size;
+-			memcpy(pbuf,
+-			       &g_vendor->data[g_vendor->item[i].offset],
+-			       size);
++			u32 item_off = g_vendor->item[i].offset;
++			u32 item_sz = g_vendor->item[i].size;
++
++			if (item_off > sizeof(g_vendor->data) ||
++			    item_sz > sizeof(g_vendor->data) - item_off)
++				return -EINVAL;
++			if (size > item_sz)
++				size = item_sz;
++			memcpy(pbuf, &g_vendor->data[item_off], size);
+ 			return size;
+ 		}
+ 	}
+@@ -127,16 +135,25 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 	struct vendor_item *item;
+ 	struct vendor_item *next_item;
+ 
+-	if (!g_vendor)
++	if (!g_vendor || !pbuf)
+ 		return -ENOMEM;
+ 
++	if (size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	p_data = g_vendor->data;
+-	item_num = g_vendor->item_num;
+-	align_size = ALIGN(size, 0x40); /* align to 64 bytes*/
++	item_num = min_t(u32, g_vendor->item_num, ARRAY_SIZE(g_vendor->item));
++	align_size = ALIGN(size, 0x40); /* align to 64 bytes */
++	if (align_size > sizeof(g_vendor->data))
++		return -EINVAL;
++
+ 	next_index = g_vendor->next_index;
+ 	for (i = 0; i < item_num; i++) {
+ 		item = &g_vendor->item[i];
+ 		if (item->id == id) {
++			if (item->offset > sizeof(g_vendor->data) ||
++			    item->size > sizeof(g_vendor->data) - item->offset)
++				return -EINVAL;
+ 			alloc_size = ALIGN(item->size, 0x40);
+ 			if (size > alloc_size) {
+ 				if (g_vendor->free_size < align_size)
+@@ -145,16 +162,23 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 				for (j = i; j < item_num - 1; j++) {
+ 					item = &g_vendor->item[j];
+ 					next_item = &g_vendor->item[j + 1];
++					next_size = ALIGN(next_item->size, 0x40);
++					if (next_item->offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - next_item->offset ||
++					    offset > sizeof(g_vendor->data) ||
++					    next_size > sizeof(g_vendor->data) - offset)
++						return -EINVAL;
+ 					item->id = next_item->id;
+ 					item->size = next_item->size;
+ 					item->offset = offset;
+-					next_size = ALIGN(next_item->size,
+-							  0x40);
+-					memcpy(&p_data[offset],
+-					       &p_data[next_item->offset],
+-					       next_size);
++					memmove(&p_data[offset],
++						&p_data[next_item->offset],
++						next_size);
+ 					offset += next_size;
+ 				}
++				if (offset > sizeof(g_vendor->data) ||
++				    align_size > sizeof(g_vendor->data) - offset)
++					return -EINVAL;
+ 				item = &g_vendor->item[j];
+ 				item->id = id;
+ 				item->offset = offset;
+@@ -163,9 +187,9 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 				g_vendor->free_offset = offset + align_size;
+ 				g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
+ 			} else {
+-				memcpy(&p_data[item->offset],
+-				       pbuf,
+-				       size);
++				if (size > sizeof(g_vendor->data) - item->offset)
++					return -EINVAL;
++				memcpy(&p_data[item->offset], pbuf, size);
+ 				g_vendor->item[i].size = size;
+ 			}
+ 			g_vendor->version++;
+@@ -180,7 +204,10 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 		}
+ 	}
+ 
+-	if (g_vendor->free_size >= align_size) {
++	if (g_vendor->free_offset <= sizeof(g_vendor->data) &&
++	    g_vendor->free_size >= align_size &&
++	    align_size <= sizeof(g_vendor->data) - g_vendor->free_offset &&
++	    g_vendor->item_num < ARRAY_SIZE(g_vendor->item)) {
+ 		item = &g_vendor->item[g_vendor->item_num];
+ 		item->id = id;
+ 		item->offset = g_vendor->free_offset;
+@@ -199,14 +226,16 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
+ 				EMMC_VENDOR_PART_SIZE, 1);
+ 		return 0;
+ 	}
+-	return(-1);
++	return (-1);
+ }
+ 
+ #ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
+ static int id_blk_read_data(u32 index, u32 n_sec, u8 *buf)
+ {
+-	if (index + n_sec >= 1024 * 5)
+-		return 0;
++	u32 end;
++
++	if (n_sec == 0 || check_add_overflow(index, n_sec, &end) || end >= 1024 * 5)
++		return -EINVAL;
+ 	index = index + EMMC_IDB_PART_OFFSET;
+ 
+ 	return rk_emmc_transfer(buf, index, n_sec << 9, 0);
+@@ -214,8 +243,10 @@ static int id_blk_read_data(u32 index, u32 n_sec, u8 *buf)
+ 
+ static int id_blk_write_data(u32 index, u32 n_sec, u8 *buf)
+ {
+-	if (index + n_sec >= 1024 * 5)
+-		return 0;
++	u32 end;
++
++	if (n_sec == 0 || check_add_overflow(index, n_sec, &end) || end >= 1024 * 5)
++		return -EINVAL;
+ 	index = index + EMMC_IDB_PART_OFFSET;
+ 
+ 	return rk_emmc_transfer(buf, index, n_sec << 9, 1);
+@@ -264,6 +295,8 @@ static int emmc_write_idblock(u32 size, u8 *buf, u32 *id_blk_tbl)
+ 
+ static int vendor_storage_open(struct inode *inode, struct file *file)
+ {
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
+ 	return 0;
+ }
+ 
+@@ -359,7 +392,10 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 	struct RK_VENDOR_REQ *v_req;
+ 	u32 *page_buf;
+ 
+-	page_buf = kmalloc(4096, GFP_KERNEL);
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	page_buf = kzalloc(4096, GFP_KERNEL);
+ 	if (!page_buf)
+ 		return -ENOMEM;
+ 
+@@ -375,33 +411,39 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 			break;
+ 		}
+ 		if (v_req->tag == VENDOR_REQ_TAG) {
+-			size = emmc_vendor_read(v_req->id, v_req->data,
+-						v_req->len);
+-			if (size != -1) {
++			u16 req_len = min_t(u16, v_req->len, 4096 - 8);
++
++			size = emmc_vendor_read(v_req->id, v_req->data, req_len);
++			if (size >= 0 && size <= 4096 - 8) {
+ 				v_req->len = size;
+ 				ret = 0;
+ 				if (copy_to_user((void __user *)arg,
+ 						 page_buf,
+-						 v_req->len + 8))
++						 size + 8))
+ 					ret = -EFAULT;
+ 			}
+ 		}
+ 	} break;
+ 	case VENDOR_WRITE_IO:
+ 	{
++		u16 req_id, req_len;
++
+ 		if (copy_from_user(page_buf, (void __user *)arg, 8)) {
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-		if (v_req->tag == VENDOR_REQ_TAG && (v_req->len < 4096 - 8)) {
+-			if (copy_from_user(page_buf, (void __user *)arg,
+-					   v_req->len + 8)) {
++		req_id = v_req->id;
++		req_len = v_req->len;
++		if (v_req->tag == VENDOR_REQ_TAG && req_len < 4096 - 8) {
++			/* Copy payload only to prevent double-fetch TOCTOU on header fields */
++			if (req_len > 0 &&
++			    copy_from_user(v_req->data,
++					   (const u8 __user *)arg + 8,
++					   req_len)) {
+ 				ret = -EFAULT;
+ 				break;
+ 			}
+-			ret = emmc_vendor_write(v_req->id,
+-						v_req->data,
+-						v_req->len);
++			ret = emmc_vendor_write(req_id, v_req->data, req_len);
+ 		}
+ 	} break;
+ 
+@@ -414,8 +456,14 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 		}
+ 
+ 		size = page_buf[1];
+-		if (size <= 8) {
+-			id_blk_read_data(page_buf[0], size, (u8 *)page_buf);
++		if (size > 0 && size <= 8) {
++			u32 sec_idx = page_buf[0];
++
++			memset(page_buf, 0, 4096);
++			if (id_blk_read_data(sec_idx, size, (u8 *)page_buf) != 0) {
++				ret = -EIO;
++				goto exit;
++			}
+ 			if (copy_to_user((void __user *)arg, page_buf,
+ 					 size * 512)) {
+ 				ret = -EFAULT;
+@@ -435,10 +483,10 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 			goto exit;
+ 		}
+ 		if (!g_idb_buffer) {
+-			g_idb_buffer = kmalloc(4096 + EMMC_BOOT_PART_SIZE * 512,
++			g_idb_buffer = kzalloc(4096 + EMMC_BOOT_PART_SIZE * 512,
+ 					       GFP_KERNEL);
+ 			if (!g_idb_buffer) {
+-				ret = -EFAULT;
++				ret = -ENOMEM;
+ 				goto exit;
+ 			}
+ 		}
+@@ -469,16 +517,15 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
+ 				ret = -2;
+ 				goto exit;
+ 			}
+-			ret =  emmc_write_idblock(page_buf[0],
+-						  (u8 *)g_idb_buffer,
+-						  &page_buf[2]);
++			ret = emmc_write_idblock(page_buf[0],
++						 (u8 *)g_idb_buffer,
++						 &page_buf[2]);
+ 			kfree(g_idb_buffer);
+ 			g_idb_buffer = NULL;
+ 		} else {
+ 			ret = -EFAULT;
+ 			goto exit;
+ 		}
+-		ret = 0;
+ 	} break;
+ 
+ 	case GET_BAD_BLOCK_IO:
+diff --git a/drivers/video/rockchip/rga3/rga_mm.c b/drivers/video/rockchip/rga3/rga_mm.c
+index c5de4127d..ba89d1dec 100644
+--- a/drivers/video/rockchip/rga3/rga_mm.c
++++ b/drivers/video/rockchip/rga3/rga_mm.c
+@@ -32,85 +32,6 @@ static void rga_current_mm_read_unlock(struct mm_struct *mm)
+ #endif
+ }
+ 
+-static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory,
+-				       uint32_t pageCount, struct mm_struct *current_mm)
+-{
+-	int ret = 0;
+-	int i;
+-	struct vm_area_struct *vma;
+-	spinlock_t *ptl;
+-	pte_t *pte;
+-	pgd_t *pgd;
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+-	p4d_t *p4d;
+-#endif
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	unsigned long pfn;
+-
+-	for (i = 0; i < pageCount; i++) {
+-		vma = find_vma(current_mm, (Memory + i) << PAGE_SHIFT);
+-		if (!vma) {
+-			rga_err("page[%d] failed to get vma\n", i);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-
+-		pgd = pgd_offset(current_mm, (Memory + i) << PAGE_SHIFT);
+-		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
+-			rga_err("page[%d] failed to get pgd\n", i);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+-		/*
+-		 * In the four-level page table,
+-		 * it will do nothing and return pgd.
+-		 */
+-		p4d = p4d_offset(pgd, (Memory + i) << PAGE_SHIFT);
+-		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d))) {
+-			rga_err("page[%d] failed to get p4d\n", i);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-
+-		pud = pud_offset(p4d, (Memory + i) << PAGE_SHIFT);
+-#else
+-		pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
+-#endif
+-
+-		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
+-			rga_err("page[%d] failed to get pud\n", i);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-		pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
+-		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd))) {
+-			rga_err("page[%d] failed to get pmd\n", i);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-		pte = pte_offset_map_lock(current_mm, pmd,
+-					  (Memory + i) << PAGE_SHIFT, &ptl);
+-		if (pte_none(*pte)) {
+-			rga_err("page[%d] failed to get pte\n", i);
+-			pte_unmap_unlock(pte, ptl);
+-			ret = RGA_OUT_OF_RESOURCES;
+-			break;
+-		}
+-
+-		pfn = pte_pfn(*pte);
+-		pages[i] = pfn_to_page(pfn);
+-		pte_unmap_unlock(pte, ptl);
+-	}
+-
+-	if (ret == RGA_OUT_OF_RESOURCES && i > 0)
+-		rga_err("Only get buffer %d byte from vma, but current image required %d byte",
+-			(int)(i * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
+-
+-	return ret;
+-}
+-
+ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
+ 			      uint32_t pageCount, int writeFlag,
+ 			      struct mm_struct *current_mm)
+@@ -145,11 +66,9 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
+ 			for (i = 0; i < result; i++)
+ 				put_page(pages[i]);
+ 
+-		ret = rga_get_user_pages_from_vma(pages, Memory, pageCount, current_mm);
+-		if (ret < 0 && result > 0) {
+-			rga_err("Only get buffer %d byte from user pages, but current image required %d byte\n",
+-				(int)(result * PAGE_SIZE), (int)(pageCount * PAGE_SIZE));
+-		}
++		rga_err("get_user_pages_remote failed (result=%d, required=%u)\n",
++			result, pageCount);
++		ret = -EFAULT;
+ 	}
+ 
+ 	rga_current_mm_read_unlock(current_mm);
+@@ -230,32 +149,46 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
+ 	int result = 0;
+ 	int order;
+ 	unsigned int count;
+-	int img_size;
++	size_t img_size;
++	size_t total_len;
++	size_t page_table_bytes;
+ 	size_t offset;
+ 	unsigned long size;
+ 	struct page **pages = NULL;
+ 	struct rga_virt_addr *virt_addr = NULL;
+ 
+-	if (memory_parm->size)
++	if (memory_parm->size) {
+ 		img_size = memory_parm->size;
+-	else
+-		img_size = rga_image_size_cal(memory_parm->width,
++	} else {
++		int calc = rga_image_size_cal(memory_parm->width,
+ 					      memory_parm->height,
+ 					      memory_parm->format,
+ 					      NULL, NULL, NULL);
++		if (calc <= 0)
++			return -EINVAL;
++		img_size = (size_t)calc;
++	}
+ 
+ 	offset = viraddr & (~PAGE_MASK);
+-	count = RGA_GET_PAGE_COUNT(img_size + offset);
+-	size = count * PAGE_SIZE;
+-	if (!size) {
+-		rga_err("failed to calculating buffer size! size = %ld, count = %d, offset = %ld\n",
+-			size, count, (unsigned long)offset);
++	if (check_add_overflow(img_size, offset, &total_len) ||
++	    total_len > (SIZE_MAX - PAGE_SIZE + 1)) {
++		rga_err("buffer size overflow: img_size=%zu, offset=%zu\n",
++			img_size, offset);
++		return -EINVAL;
++	}
++
++	count = RGA_GET_PAGE_COUNT(total_len);
++	if (count == 0 || check_mul_overflow((unsigned long)count, PAGE_SIZE, &size)) {
++		rga_err("failed to calculating buffer size! count=%u, offset=%zu\n",
++			count, offset);
+ 		rga_dump_memory_parm(memory_parm);
+ 		return -EFAULT;
+ 	}
+ 
+ 	/* alloc pages and page_table */
+-	order = get_order(count * sizeof(struct page *));
++	if (check_mul_overflow((size_t)count, sizeof(struct page *), &page_table_bytes))
++		return -ENOMEM;
++	order = get_order(page_table_bytes);
+ 	if (order >= MAX_ORDER) {
+ 		rga_err("Can not alloc pages with order[%d] for viraddr pages, max_order = %d\n",
+ 			order, MAX_ORDER);
+@@ -686,6 +619,11 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
+ 	struct rga_dma_buffer *buffer;
+ 	struct rga_scheduler_t *scheduler;
+ 
++	if (!capable(CAP_SYS_RAWIO)) {
++		rga_err("Permission denied for RGA_PHYSICAL_ADDRESS mapping!\n");
++		return -EPERM;
++	}
++
+ 	scheduler = job ? job->scheduler :
+ 		    rga_drvdata->scheduler[rga_drvdata->map_scheduler_index];
+ 	if (scheduler == NULL) {

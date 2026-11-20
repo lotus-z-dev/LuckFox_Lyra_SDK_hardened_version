@@ -1,0 +1,48 @@
+diff --git a/board/rockchip/rk3506/users.table b/board/rockchip/rk3506/users.table
+new file mode 100644
+index 00000000..2ce0dea1
+--- /dev/null
++++ b/board/rockchip/rk3506/users.table
+@@ -0,0 +1,3 @@
++# Unprivileged service account for sandboxed camera/media daemons
++# Format: username uid group gid password home shell groups comment
++egyscam 1001 egyscam 1001 * /var/lib/egyscam /bin/false video,audio Unprivileged camera daemon
+diff --git a/configs/rockchip_rk3506_luckfox_defconfig b/configs/rockchip_rk3506_luckfox_defconfig
+index 18d883a0..0df2a32d 100644
+--- a/configs/rockchip_rk3506_luckfox_defconfig
++++ b/configs/rockchip_rk3506_luckfox_defconfig
+@@ -42,8 +42,7 @@ BR2_PACKAGE_MHZ=y
+ BR2_PACKAGE_MINICOM=y
+ BR2_PACKAGE_NANO=y
+ BR2_PACKAGE_NANOCOM=y
+-BR2_PACKAGE_OPENSSH=y
+-BR2_PACKAGE_OPENSSH_GEN_KEYS=y
++# BR2_PACKAGE_OPENSSH is not set
+ BR2_PACKAGE_PCRE2_16=y
+ BR2_PACKAGE_PCRE2_32=y
+ BR2_PACKAGE_PHYTOOL=y
+@@ -73,19 +72,20 @@ BR2_PACKAGE_RKADK_EXAMPLES=y
+ BR2_PACKAGE_RKADK_PLAYER=y
+ BR2_PACKAGE_RKWIFIBT_APP=y
+ BR2_PACKAGE_ROCKCHIP_RGA=y
+-BR2_PACKAGE_ROCKCHIP_TEST=y
++# BR2_PACKAGE_ROCKCHIP_TEST is not set
+ BR2_PACKAGE_RSYNC=y
+ BR2_PACKAGE_UTIL_LINUX_AGETTY=y
+ BR2_PACKAGE_VIM=y
+ BR2_PACK_EXTRA_TARGET=y
+ # BR2_PREFER_ROCKCHIP_RGA is not set
+ BR2_ROCKCHIP_ALSA_CONFIG_INSTALL_INIT_SCRIPT=y
++BR2_ROOTFS_USERS_TABLES="board/rockchip/rk3506/users.table"
+ BR2_TARGET_GENERIC_HOSTNAME="luckfox"
+-BR2_TARGET_GENERIC_ISSUE="Welcome to Luckfox Lyra [root:luckfox]"
++BR2_TARGET_GENERIC_ISSUE="Luckfox Lyra Hardened OS"
+ # BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set
+-BR2_TARGET_GENERIC_ROOT_PASSWD="luckfox"
++# BR2_TARGET_ENABLE_ROOT_LOGIN is not set
+ BR2_TARGET_ROOTFS_SQUASHFS4_ZSTD=y
+-BR2_TARGET_SERIAL_SHELL_GETTY=y
++BR2_TARGET_SERIAL_SHELL_NONE=y
+ BR2_TIME_BITS_64=y
+ BR2_arm=y
+ BR2_cortex_a7=y
